@@ -1,0 +1,57 @@
+name: Validate
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+      - 'bugfix/**'
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4 # Duplicate code into the ci/cd runner
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x' 
+
+      - name: Install MAUI workloads
+        run: dotnet workload install maui --from-rollback-file https://aka.ms/dotnet/maui/net8.0/stable.json 
+
+      - name: Restore dependencies
+        run: dotnet restore IoTBrailleDisplay.sln # Download NUGET packages 
+
+      - name: Build solution
+        run: dotnet build IoTBrailleDisplay.sln --configuration Release --no-restore 
+
+      - name: Run tests
+        run: dotnet test IoTBrailleDisplay.sln --no-build --configuration Release --verbosity normal # Run all test projects referenced in the solution file.
+
+  format:
+    name: Format Code
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4 # Duplicate code into the ci/cd runner
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x' 
+
+      - name: Install dotnet-format
+        run: dotnet tool install -g dotnet-format
+
+      - name: Run dotnet format
+        run: dotnet format IoTBrailleDisplay.sln --verify-no-changes
