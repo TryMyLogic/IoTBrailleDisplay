@@ -1,0 +1,44 @@
+name: TestCode
+
+on:
+  push:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4 # Duplicate code into the CI/CD runner
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x' 
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~\.nuget\packages
+          key: v1-${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.sln') }}
+          restore-keys: |
+            v1-${{ runner.os }}-nuget-
+        # Note: Change 'v1-' to 'v2-' to invalidate cache if dotnet-format version changes.
+        # Alternatively, clear caches manually in GitHub UI: Actions > Caches > Delete.
+
+      - name: Restore dependencies
+        run: |
+          dotnet restore DisplayLogic/DisplayLogic.csproj --verbosity normal
+          dotnet restore DisplayLogic.Tests/DisplayLogic.Tests.csproj --verbosity normal
+
+      - name: Build projects
+        run: |
+          dotnet build DisplayLogic/DisplayLogic.csproj --configuration Release --no-restore
+          dotnet build DisplayLogic.Tests/DisplayLogic.Tests.csproj --configuration Release --no-restore
+
+      - name: Run tests
+        run: dotnet test DisplayLogic.Tests/DisplayLogic.Tests.csproj --no-build --configuration Release --verbosity normal # Run test project only
