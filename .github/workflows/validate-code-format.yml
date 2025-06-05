@@ -1,0 +1,58 @@
+name: ValidateCodeFormat
+
+on:
+  push:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  format:
+    name: Format Code
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: v1-${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.sln') }}
+          restore-keys: |
+            v1-${{ runner.os }}-nuget-
+
+      - name: Cache MAUI workloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.dotnet/sdk-manifests
+            ~/.dotnet/workloads
+          key: v1-${{ runner.os }}-maui-workloads-${{ hashFiles('**/*.csproj', '**/*.sln') }}
+          restore-keys: |
+            v1-${{ runner.os }}-maui-workloads-
+
+      - name: Cache dotnet-format tool
+        uses: actions/cache@v4
+        with:
+          path: ~/.dotnet/tools
+          key: v1-${{ runner.os }}-dotnet-tools-${{ hashFiles('**/*.csproj', '**/*.sln') }}
+          restore-keys: |
+            v1-${{ runner.os }}-dotnet-tools-
+        # Note: Change 'v1-' to 'v2-' to invalidate cache if dotnet-format version changes.
+        # Alternatively, clear caches manually in GitHub UI: Actions > Caches > Delete.
+
+      - name: Install MAUI workloads
+        run: dotnet workload install maui
+        
+      - name: Install dotnet-format
+        run: dotnet tool install -g dotnet-format
+
+      - name: Run dotnet format
+        run: dotnet format IoTBrailleDisplay.sln --verify-no-changes --verbosity normal
