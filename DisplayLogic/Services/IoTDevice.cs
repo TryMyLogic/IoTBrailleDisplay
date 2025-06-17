@@ -1,6 +1,6 @@
-﻿using MQTTnet;
-using System.Buffers;
+﻿using System.Buffers;
 using System.Text;
+using MQTTnet;
 
 
 namespace DisplayLogic.Services
@@ -12,7 +12,6 @@ namespace DisplayLogic.Services
         private readonly HttpClient _httpClient;
         private readonly string _mqttBroker;
         private readonly string _restEndpoint;
-        private bool _isMqttConnected;
 
         public IoTDevice(string mqttBroker, string restEndpoint)
         {
@@ -22,11 +21,11 @@ namespace DisplayLogic.Services
             _httpClient = new HttpClient();
             _mqttBroker = mqttBroker ?? throw new ArgumentNullException(nameof(mqttBroker));
             _restEndpoint = restEndpoint ?? throw new ArgumentNullException(nameof(restEndpoint));
-            _isMqttConnected = true; // Only false when rest is connected
+            IsConnected = true; // Only false when rest is connected
         }
 
         // Public read-only property indicating connection status
-        public bool IsConnected => _isMqttConnected;
+        public bool IsConnected { get; private set; }
 
         public async Task ConnectAsync()
         {
@@ -36,13 +35,12 @@ namespace DisplayLogic.Services
 
             MqttClientConnectResult response = await _mqttClient.ConnectAsync(MqttClientOptions, CancellationToken.None);
             // Update internal connection status based on broker's response
-            _isMqttConnected = response.ResultCode == MqttClientConnectResultCode.Success;
+            IsConnected = response.ResultCode == MqttClientConnectResultCode.Success;
 
-            if (!_isMqttConnected)
+            if (!IsConnected)
             {
                 throw new Exception("Could not connect to MQTT broker.");
             }
-
         }
 
         // Gracefully disconnect from the MQTT broker        
@@ -54,7 +52,7 @@ namespace DisplayLogic.Services
                 // This will send the DISCONNECT packet. Calling _Dispose_ without DisconnectAsync the
                 // connection is closed in a "not clean" way. See MQTT specification for more details.
                 await _mqttClient.DisconnectAsync(new MqttClientDisconnectOptionsBuilder().WithReason(MqttClientDisconnectOptionsReason.NormalDisconnection).Build());
-                _isMqttConnected = false;
+                IsConnected = false;
             }
         }
 

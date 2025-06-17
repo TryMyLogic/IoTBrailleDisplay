@@ -37,11 +37,11 @@ namespace DisplayApp
 #if ANDROID
 
 #elif WINDOWS
-            
+
 #elif IOS
-            
+
 #elif MACCATALYST
-           
+
 #else
             // Add defaults as fallback here. 
 #endif
