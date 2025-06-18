@@ -69,7 +69,7 @@ namespace DisplayLogic.Services
                 .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
                 .Build();
 
-            await _mqttClient.PublishAsync(message, CancellationToken.None);
+            _ = await _mqttClient.PublishAsync(message, CancellationToken.None);
         }
 
         // Subscribe to an MQTT topic and return the first message received
@@ -103,12 +103,12 @@ namespace DisplayLogic.Services
 
                     // Decode the byte array to a UTF-8 string
                     string msg = Encoding.UTF8.GetString(bytes);
-                    tcs.TrySetResult(msg);
+                    _ = tcs.TrySetResult(msg);
                 }
                 return Task.CompletedTask;
             };
 
-            await _mqttClient.SubscribeAsync(topic);
+            _ = await _mqttClient.SubscribeAsync(topic);
             return await tcs.Task;
         }
 

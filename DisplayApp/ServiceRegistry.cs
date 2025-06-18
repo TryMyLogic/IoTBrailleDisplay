@@ -31,7 +31,10 @@ namespace DisplayApp
             .CreateLogger();
 
             // Global services
-            services.AddLogging(builder => builder.AddSerilog(dispose: true));
+            services.AddLogging(builder =>
+            {
+                builder.AddSerilog(dispose: true);
+            });
 
             // Conditional compilation directives for platform specific services. (Note: Do not indent or it will not work)
 #if ANDROID

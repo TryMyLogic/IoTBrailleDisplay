@@ -13,12 +13,12 @@
 
         public async Task ConnectAsync()
         {
-            await _connectionStrategy.ConnectAsync();
+            _ = await _connectionStrategy.ConnectAsync();
         }
 
         public async Task DisconnectAsync()
         {
-            await _connectionStrategy.DisconnectAsync();
+            _ = await _connectionStrategy.DisconnectAsync();
         }
 
         public Task ReceiveTextAsync()
