@@ -1,30 +1,15 @@
 ﻿namespace DisplayLogic.Services
 {
-    // This is platform specific code. Must move to platform folder
-    internal interface IConnectionStrategy
+    // Using this file as the main interface. Platform specific connection strategies have been added to their separate platform folders
+    public interface IConnectionStrategy
     {
         bool IsConnected { get; }
         Task<bool> ConnectAsync();
         Task<bool> DisconnectAsync();
     }
 
-    // Below 2 are examples. Actual implementation will be like: WindowsWiredConnectionStrategy. Must be moved to appropriate platform specific folder
+    //Leaving WiredConnectionStrategy here for later use. Bluetooth connection strategies have been moved
     public class WiredConnectionStrategy : IConnectionStrategy
-    {
-        public bool IsConnected => throw new NotImplementedException();
-
-        public Task<bool> ConnectAsync()
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<bool> DisconnectAsync()
-        {
-            throw new NotImplementedException();
-        }
-    }
-
-    public class BluetoothConnectionStrategy : IConnectionStrategy
     {
         public bool IsConnected => throw new NotImplementedException();
 
