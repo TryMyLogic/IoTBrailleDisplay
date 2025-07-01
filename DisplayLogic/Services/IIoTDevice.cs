@@ -15,6 +15,6 @@
         Task PublishAsync(string topic, string payload);
 
         // Subscribes to an IoT topic (MQTT) or retrieves data (REST)
-        Task<string> SubscribeAsync(string topic);
+        Task<string> SubscribeAsync(string topic, int timeoutMs = 5000);
     }
 }
