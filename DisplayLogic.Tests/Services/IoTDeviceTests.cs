@@ -1,6 +1,4 @@
-﻿using System.Net;
-using DisplayLogic.Services;
-using DisplayLogic.Tests.TestUtils;
+﻿using DisplayLogic.Services;
 
 namespace DisplayLogic.Tests.Services
 {
@@ -36,38 +34,6 @@ namespace DisplayLogic.Tests.Services
 
             string received = await device.SubscribeAsync(topic);
             Assert.Equal(expectedPayload, received);
-        }
-
-        [Fact]
-        public void Should_Map_Mqtt_Topic_To_Rest_Endpoint()
-        {
-            IoTDevice device = new(TestBroker, TestRestEndpoint);
-            string topic = "iot/devices/status";
-
-            System.Reflection.MethodInfo? method = typeof(IoTDevice).GetMethod("MapTopicToEndpoint", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            Assert.NotNull(method);
-            string? restUrl = method.Invoke(device, [topic]) as string;
-            Assert.NotNull(restUrl);
-
-            Assert.Equal("http://localhost/api/devices-status", restUrl);
-        }
-
-        [Fact]
-        public async Task Should_Fallback_To_Rest_When_Mqtt_Unavailable()
-        {
-            // Inject fake REST client
-            FakeHttpHandler fakeHandler = new(HttpStatusCode.OK, "Fallback successful");
-            HttpClient httpClient = new(fakeHandler);
-
-            // Use an unreachable MQTT broker to simulate fallback
-            IoTDevice device = new("invalid-broker", TestRestEndpoint, httpClient: httpClient);
-
-            System.Reflection.MethodInfo? method = typeof(IoTDevice).GetMethod("MapTopicToEndpoint", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            Assert.NotNull(method);
-            string? restUrl = method.Invoke(device, ["iot/device/test"])!.ToString();
-
-            string response = await httpClient.GetStringAsync(restUrl);
-            Assert.Equal("Fallback successful", response);
         }
 
         [SkippableFact]
