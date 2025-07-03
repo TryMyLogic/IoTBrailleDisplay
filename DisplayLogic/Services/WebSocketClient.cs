@@ -1,6 +1,8 @@
 ﻿using System.Net.WebSockets;
 using System.Text;
 using DisplayLogic.SharedInterfaces;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DisplayLogic.Services
 {
@@ -8,7 +10,7 @@ namespace DisplayLogic.Services
     {
         private readonly ClientWebSocket _socket;
         private readonly string _wsUrl;
-        private readonly string _logFilePath;
+        private readonly ILogger<WebSocketClient>? _logger;
         private readonly IUserNotifier _notifier;
 
         public event Action<string>? PayloadReceived;
@@ -16,12 +18,12 @@ namespace DisplayLogic.Services
         public WebSocketClient(
             string wsUrl,
             IUserNotifier notifier,
-            string logFilePath)
+            ILogger<WebSocketClient>? logger = null)
         {
             _wsUrl = wsUrl ?? throw new ArgumentNullException(nameof(wsUrl));
             _notifier = notifier ?? throw new ArgumentNullException(nameof(notifier));
             _socket = new ClientWebSocket();
-            _logFilePath = logFilePath ?? throw new ArgumentNullException(nameof(logFilePath));
+            _logger = logger ?? NullLogger<WebSocketClient>.Instance;
         }
 
         public async Task StartAsync()
@@ -29,7 +31,7 @@ namespace DisplayLogic.Services
             try
             {
                 await _socket.ConnectAsync(new Uri(_wsUrl), CancellationToken.None);
-                _ = Task.Run(ReceiveMessagesAsync);
+                await ReceiveMessagesAsync();
             }
             catch (Exception ex)
             {
@@ -89,8 +91,7 @@ namespace DisplayLogic.Services
 
         private async Task LogAsync(string message)
         {
-            string line = $"{DateTime.UtcNow:o}: {message}{Environment.NewLine}";
-            await File.AppendAllTextAsync(_logFilePath, line);
+            _logger?.LogInformation("WebSocket Payload: {message}", message);
             await _notifier.NotifyAsync("WebSocket Payload", message);
         }
     }

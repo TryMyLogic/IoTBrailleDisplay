@@ -8,7 +8,6 @@ namespace DisplayLogic.Tests.Services.WebSocketClientTests
     {
         private readonly IUserNotifier _substituteNotifier;
         private readonly string _wsUrl = "ws://localhost:8123/api/websocket";
-        private readonly string _logFilePath = "test_log.txt";
 
         public WebSocketClientTests()
         {
@@ -22,7 +21,7 @@ namespace DisplayLogic.Tests.Services.WebSocketClientTests
             // Arrange
 
             // Act
-            WebSocketClient? client = new(_wsUrl, _substituteNotifier, _logFilePath);
+            WebSocketClient? client = new(_wsUrl, _substituteNotifier);
 
             // Assert
             Assert.NotNull(client);
@@ -36,7 +35,7 @@ namespace DisplayLogic.Tests.Services.WebSocketClientTests
             // Act & Assert
             _ = Assert.Throws<ArgumentNullException>(() =>
             {
-                return new WebSocketClient(null!, _substituteNotifier, _logFilePath);
+                return new WebSocketClient(null!, _substituteNotifier);
             });
         }
 
@@ -48,20 +47,21 @@ namespace DisplayLogic.Tests.Services.WebSocketClientTests
             // Act & Assert
             _ = Assert.Throws<ArgumentNullException>(() =>
             {
-                return new WebSocketClient(_wsUrl, null!, _logFilePath);
+                return new WebSocketClient(_wsUrl, null!);
             });
         }
 
         [Fact]
-        public void Constructor_NullLogFilePath_ThrowsArgumentNullException()
+        public void Constructor_NullLogger_DoesNotThrow()
         {
             // Arrange
 
             // Act & Assert
-            _ = Assert.Throws<ArgumentNullException>(() =>
+            Exception exception = Record.Exception(() =>
             {
-                return new WebSocketClient(_wsUrl, _substituteNotifier, null!);
+                return new WebSocketClient(_wsUrl, _substituteNotifier, null);
             });
+            Assert.Null(exception);
         }
 
         [Fact]
@@ -70,7 +70,7 @@ namespace DisplayLogic.Tests.Services.WebSocketClientTests
             // Arrange
             string InvalidWsUrl = "ws://unknownhost:8123/api/websocket";
             string expectedMessage = "Connection error: Unable to connect to the remote server";
-            WebSocketClient client = new(InvalidWsUrl, _substituteNotifier, _logFilePath);
+            WebSocketClient client = new(InvalidWsUrl, _substituteNotifier);
 
             // Act
             await client.StartAsync();
@@ -83,7 +83,7 @@ namespace DisplayLogic.Tests.Services.WebSocketClientTests
         public async Task SendAsync_WhenNotConnected_ThrowsInvalidOperationException()
         {
             // Arrange
-            WebSocketClient client = new(_wsUrl, _substituteNotifier, _logFilePath);
+            WebSocketClient client = new(_wsUrl, _substituteNotifier);
             string payload = string.Empty;
 
             // Act & Assert
