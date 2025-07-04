@@ -1,6 +1,6 @@
 ﻿namespace DisplayLogic.Services
 {
-    internal interface IBrailleDisplay
+    public interface IBrailleDisplay
     {
         // Indicates if the IoT device is connected
         bool IsConnected { get; }

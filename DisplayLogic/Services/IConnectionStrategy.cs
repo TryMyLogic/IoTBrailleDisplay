@@ -1,7 +1,7 @@
 ﻿namespace DisplayLogic.Services
 {
     // This is platform specific code. Must move to platform folder
-    internal interface IConnectionStrategy
+    public interface IConnectionStrategy
     {
         bool IsConnected { get; }
         Task<bool> ConnectAsync();

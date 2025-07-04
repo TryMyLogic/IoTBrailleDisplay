@@ -1,6 +1,6 @@
 ﻿namespace DisplayLogic.Services
 {
-    internal class BrailleDisplay : IBrailleDisplay
+    public class BrailleDisplay : IBrailleDisplay
     {
         private readonly IConnectionStrategy _connectionStrategy;
         public BrailleDisplay(IConnectionStrategy connectionStrategy)

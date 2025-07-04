@@ -16,22 +16,17 @@
         public abstract Task<object> ProcessResponseAsync(string response);
     }
 
-    // Command to retrieve a list of IoT devices
-    public class GetDevicesCommand : IoTCommand
+    public class ShellySwitchRelayCommand(string uniqueId, bool turnOn) : IoTCommand
     {
-        // Gets the request topic: iot/devices/request
-        public override string RequestTopic => "iot/devices/request";
+        public override string RequestTopic => $"shellies/{uniqueId}/relay/0/command";
+        public override string ResponseTopic => $"shellies/{uniqueId}/relay/0";
+        public override string RequestPayload => turnOn ? "on" : "off";
 
-        //Gets the response topic: iot/devices/response
-        public override string ResponseTopic => "iot/devices/response";
-
-        // Gets an empty payload for the get devices request
-        public override string RequestPayload => "{}";
-
-        // Parses the response into a list of device IDs and its relevant information
         public override Task<object> ProcessResponseAsync(string response)
         {
-            throw new NotImplementedException();
+            return Task.FromResult<object>($"The device is: {response}"); // Will likely change this when ui is setup. 
         }
     }
+
+
 }
