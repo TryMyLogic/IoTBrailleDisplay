@@ -16,9 +16,6 @@ jobs:
         image: eclipse-mosquitto:2.0
         ports:
           - 1883:1883
-        volumes:
-          - ./mosquitto.conf:/mosquitto-custom.conf
-        command: ["mosquitto", "-c", "/mosquitto-custom.conf"]
 
       homeassistant:
         image: ghcr.io/home-assistant/home-assistant:stable
@@ -39,8 +36,14 @@ jobs:
 
       - name: Wait for Home Assistant
         run: |
-          echo "Waiting for Home Assistant to start..."
-          sleep 60  # Wait for HA to fully boot up (can be optimized)
+          for i in {1..30}; do
+            if curl -s http://localhost:8123 >/dev/null; then
+              echo "Home Assistant is up!"
+              break
+            fi
+            echo "Waiting for Home Assistant..."
+            sleep 5
+          done
 
       - name: Cache NuGet packages
         uses: actions/cache@v4
