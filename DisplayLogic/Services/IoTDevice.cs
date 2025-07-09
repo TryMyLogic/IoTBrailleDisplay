@@ -61,7 +61,9 @@ namespace DisplayLogic.Services
         {
             // Ensure client is connected before attempting to publish
             if (!_mqttClient.IsConnected)
+            {
                 throw new InvalidOperationException("MQTT client is not connected.");
+            }
 
             MqttApplicationMessage message = new MqttApplicationMessageBuilder()
                 .WithTopic(topic)
@@ -90,7 +92,7 @@ namespace DisplayLogic.Services
                     // Convert the payload to a byte array
                     if (payload.IsEmpty)
                     {
-                        bytes = Array.Empty<byte>();
+                        bytes = [];
                     }
                     else if (payload.IsSingleSegment)
                     {

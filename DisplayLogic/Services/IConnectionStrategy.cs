@@ -1,6 +1,8 @@
 ﻿namespace DisplayLogic.Services
 {
+
     // Using this file as the main interface. Platform specific connection strategies have been added to their separate platform folders
+
     public interface IConnectionStrategy
     {
         bool IsConnected { get; }
