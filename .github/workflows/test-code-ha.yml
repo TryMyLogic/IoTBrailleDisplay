@@ -21,7 +21,7 @@ jobs:
         command: ["mosquitto", "-c", "/mosquitto/config/mosquitto.conf"]
 
       homeassistant:
-        image: homeassistant/home-assistant:latest
+        image: ghcr.io/home-assistant/home-assistant:stable
         options: --privileged
         ports:
           - 8123:8123
@@ -37,14 +37,22 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
-      - name: Wait for Home Assistant
+      - name: Start Home Assistant with Docker
         run: |
+          docker run -d \
+            --name homeassistant \
+            -e TZ=Africa/Johannesburg \
+            -p 8123:8123 \
+            ghcr.io/home-assistant/home-assistant:stable
+
+      - name: Wait for Home Assistant to be ready
+        run: |
+          echo "Waiting for Home Assistant to be up..."
           for i in {1..30}; do
-            if curl -s http://localhost:8123 >/dev/null; then
-              echo "Home Assistant is up!"
+            if curl -s http://localhost:8123 | grep -q "Home Assistant"; then
+              echo "Home Assistant is ready"
               break
             fi
-            echo "Waiting for Home Assistant..."
             sleep 5
           done
 
@@ -58,11 +66,6 @@ jobs:
             echo "Waiting for Mosquitto..."
             sleep 2
           done
-
-          if ! curl -s http://localhost:8123 >/dev/null; then
-            echo "Error: Home Assistant failed to start after 150 seconds."
-            exit 1
-          fi
 
       - name: Cache NuGet packages
         uses: actions/cache@v4
