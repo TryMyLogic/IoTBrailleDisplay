@@ -63,7 +63,7 @@ namespace DisplayLogic.Tests.Services
         public async Task Should_Connect_To_HomeAssistant_And_MQTT()
         {
             // 1. Test Mosquitto
-            IoTDevice mqttDevice = new("localhost", 8123);
+            IoTDevice mqttDevice = new("localhost", "", 1883);
             await Task.Delay(TimeSpan.FromSeconds(60)); // Wait for Mosquitto to start
             await mqttDevice.ConnectAsync();
             Assert.True(mqttDevice.IsConnected);
