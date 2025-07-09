@@ -48,6 +48,17 @@ jobs:
             sleep 5
           done
 
+      - name: Wait for Mosquitto
+        run: |
+          for i in {1..30}; do
+            if nc -z localhost 1883; then
+              echo "Mosquitto is up!"
+              break
+            fi
+            echo "Waiting for Mosquitto..."
+            sleep 2
+          done
+
       - name: Cache NuGet packages
         uses: actions/cache@v4
         with:
