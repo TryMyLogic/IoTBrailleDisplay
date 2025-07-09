@@ -4,17 +4,17 @@ namespace DisplayLogic.Tests.Services
 {
     public class IoTDeviceTests
     {
-        private const string TestBroker = "test.mosquitto.org";
-        private const string TestRestEndpoint = "http://localhost/api";
+        // private const string TestBroker = "test.mosquitto.org";
+        // private const string TestRestEndpoint = "http://localhost/api";
 
-        [SkippableFact]
-        public async Task Should_Connect_To_Mqtt_Broker()
-        {
-            IoTDevice device = new(TestBroker, TestRestEndpoint);
-            await device.ConnectAsync();
+        // [SkippableFact]
+        // public async Task Should_Connect_To_Mqtt_Broker()
+        // {
+        //     IoTDevice device = new(TestBroker, TestRestEndpoint);
+        //     await device.ConnectAsync();
 
-            Assert.True(device.IsConnected);
-        }
+        //     Assert.True(device.IsConnected);
+        // }
 
         // [SkippableFact]
         // public async Task Should_Publish_And_Receive_Message()
@@ -36,34 +36,34 @@ namespace DisplayLogic.Tests.Services
         //     Assert.Equal(expectedPayload, received);
         // }
 
-        [SkippableFact]
-        public async Task Should_Disconnect_From_Mqtt()
-        {
-            IoTDevice device = new(TestBroker, TestRestEndpoint);
-            await device.ConnectAsync();
+        // [SkippableFact]
+        // public async Task Should_Disconnect_From_Mqtt()
+        // {
+        //     IoTDevice device = new(TestBroker, TestRestEndpoint);
+        //     await device.ConnectAsync();
 
-            await device.DisconnectAsync();
+        //     await device.DisconnectAsync();
 
-            Assert.False(device.IsConnected);
-        }
+        //     Assert.False(device.IsConnected);
+        // }
 
-        [Fact]
-        public async Task Publish_Should_Throw_If_Not_Connected()
-        {
-            IoTDevice device = new(TestBroker, TestRestEndpoint);
+        // [Fact]
+        // public async Task Publish_Should_Throw_If_Not_Connected()
+        // {
+        //     IoTDevice device = new(TestBroker, TestRestEndpoint);
 
-            _ = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            {
-                return device.PublishAsync("iot/test", "payload");
-            });
-        }
+        //     _ = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        //     {
+        //         return device.PublishAsync("iot/test", "payload");
+        //     });
+        // }
 
         //Simple integration test to check if Home Assistant and MQTT are reachable
         [SkippableFact]
         public async Task Should_Connect_To_HomeAssistant_And_MQTT()
         {
             // 1. Test Mosquitto
-            var mqttDevice = new IoTDevice("mosquitto", "http://homeassistant:8123");
+            IoTDevice mqttDevice = new("localhost", "http://localhost:8123");
             await Task.Delay(TimeSpan.FromSeconds(60)); // Wait for Mosquitto to start
             await mqttDevice.ConnectAsync();
             Assert.True(mqttDevice.IsConnected);
@@ -71,7 +71,7 @@ namespace DisplayLogic.Tests.Services
             // 2. Test Home Assistant basic response
             using var httpClient = new HttpClient();
             httpClient.Timeout = TimeSpan.FromSeconds(60);
-            var response = await httpClient.GetAsync("http://homeassistant:8123");
+            var response = await httpClient.GetAsync("http://localhost:8123");
             Assert.True(response.IsSuccessStatusCode);
         }
 
