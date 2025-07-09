@@ -64,6 +64,7 @@ namespace DisplayLogic.Tests.Services
         {
             // 1. Test Mosquitto
             var mqttDevice = new IoTDevice("localhost", "http://localhost");
+            await Task.Delay(TimeSpan.FromSeconds(60)); // Wait for Mosquitto to start
             await mqttDevice.ConnectAsync();
             Assert.True(mqttDevice.IsConnected);
 
