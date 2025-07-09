@@ -2,9 +2,9 @@ name: .NET Tests
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   test:
@@ -16,13 +16,32 @@ jobs:
         ports:
           - 1883:1883
 
+    homeassistant:
+      image: ghcr.io/home-assistant/home-assistant:stable
+      ports:
+        - 8123:8123
+      options: >-
+        --privileged
+        --health-cmd "curl -sSf http://localhost:8123 || exit 1"
+        --health-interval 30s
+        --health-timeout 10s
+        --health-retries 10
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: "8.0.x"
+
+      - name: Wait for Home Assistant to be healthy
+        run: |
+          for i in {1..30}; do
+            echo "Checking Home Assistant..."
+            curl -sSf http://localhost:8123 && break
+            sleep 10
+          done
 
       - name: Restore dependencies
         run: dotnet restore
