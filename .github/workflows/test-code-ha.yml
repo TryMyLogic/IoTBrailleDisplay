@@ -50,7 +50,7 @@ jobs:
 
       - name: Wait for Mosquitto
         run: |
-          for i in {1..30}; do
+          for i in {1..60}; do
             if nc -z localhost 1883; then
               echo "Mosquitto is up!"
               break
@@ -83,6 +83,9 @@ jobs:
         run: |
           dotnet build DisplayLogic/DisplayLogic.csproj --configuration Release --no-restore
           dotnet build DisplayLogic.Tests/DisplayLogic.Tests.csproj --configuration Release --no-restore
+
+      - name: Dump Home Assistant logs
+        run: docker logs $(docker ps -q --filter ancestor=homeassistant/home-assistant)
 
       - name: Run tests
         run: dotnet test DisplayLogic.Tests/DisplayLogic.Tests.csproj --no-build --configuration Release --verbosity normal # Run test project only
