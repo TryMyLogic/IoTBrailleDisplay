@@ -55,7 +55,6 @@ namespace DisplayApp.Platforms.Android
                     return false;
                 }
 
-                
                 _bluetoothSocket = device.CreateInsecureRfcommSocketToServiceRecord(uuid);
                 if (_bluetoothSocket == null)
                 {
