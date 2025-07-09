@@ -37,6 +37,9 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
+      - name: Restore .NET workloads
+        run: dotnet workload restore
+
       - name: Wait for Home Assistant
         run: |
           echo "Waiting for Home Assistant to start..."
