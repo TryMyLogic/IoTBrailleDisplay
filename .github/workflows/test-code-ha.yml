@@ -59,6 +59,11 @@ jobs:
             sleep 2
           done
 
+          if ! curl -s http://localhost:8123 >/dev/null; then
+            echo "Error: Home Assistant failed to start after 150 seconds."
+            exit 1
+          fi
+
       - name: Cache NuGet packages
         uses: actions/cache@v4
         with:
