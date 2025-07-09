@@ -63,7 +63,7 @@ namespace DisplayLogic.Tests.Services
         public async Task Should_Connect_To_HomeAssistant_And_MQTT()
         {
             // 1. Test Mosquitto
-            var mqttDevice = new IoTDevice("localhost", "http://localhost");
+            var mqttDevice = new IoTDevice("mosquitto", "http://homeassistant:8123");
             await Task.Delay(TimeSpan.FromSeconds(60)); // Wait for Mosquitto to start
             await mqttDevice.ConnectAsync();
             Assert.True(mqttDevice.IsConnected);
@@ -71,7 +71,7 @@ namespace DisplayLogic.Tests.Services
             // 2. Test Home Assistant basic response
             using var httpClient = new HttpClient();
             httpClient.Timeout = TimeSpan.FromSeconds(5);
-            var response = await httpClient.GetAsync("http://localhost:8123");
+            var response = await httpClient.GetAsync("http://homeassistant:8123");
             Assert.True(response.IsSuccessStatusCode);
         }
 
