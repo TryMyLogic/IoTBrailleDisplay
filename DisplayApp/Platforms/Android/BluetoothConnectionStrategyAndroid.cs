@@ -1,4 +1,5 @@
-﻿using Android.Bluetooth;
+﻿using System.Text;
+using Android.Bluetooth;
 using Android.Content;
 using DisplayLogic.Services;
 
@@ -7,8 +8,19 @@ namespace DisplayApp.Platforms.Android
     public class BluetoothConnectionStrategyAndroid : IConnectionStrategy
     {
         private BluetoothAdapter? _adapter;
-        private BluetoothSocket? _bluetoothSocket;
+        private BluetoothSocket? _bluetoothSocket = null!;
+
+        private static readonly Java.Util.UUID uuid = Java.Util.UUID.FromString("00001101-0000-1000-8000-00805F9B34FB")!;
+
         public bool IsConnected => _bluetoothSocket?.IsConnected ?? false;
+
+        private void EnsureConnected()
+        {
+            if (_bluetoothSocket == null || !_bluetoothSocket.IsConnected || _bluetoothSocket.InputStream == null || _bluetoothSocket.OutputStream == null)
+            {
+                throw new InvalidOperationException("Bluetooth socket is not connected or has no valid stream.");
+            }
+        }
         public async Task<bool> ConnectAsync()
         {
             try
@@ -20,9 +32,8 @@ namespace DisplayApp.Platforms.Android
                 {
                     System.Diagnostics.Debug.WriteLine("Context is null");
                 }
-                //Getting a warning here for possible null value. I've been trying for hours to solve it, but I've been unable to. I've added null checks to prevent potential future crashes, but this might cause issues in the future
 
-                var bluetoothManager = (BluetoothManager?)context.GetSystemService(Context.BluetoothService);
+                BluetoothManager? bluetoothManager = (BluetoothManager?)context?.GetSystemService(Context.BluetoothService);
 
                 if (bluetoothManager == null)
                 {
@@ -44,10 +55,19 @@ namespace DisplayApp.Platforms.Android
                     return false;
                 }
 
-                //UUID is required for MAUI communication with Android Device. Subject to change, however, the UUID present is the universal standard for communication with Raspberry Pi
-                var uuid = Java.Util.UUID.FromString("00001101-0000-1000-8000-00805F9B34FB");
+                
                 _bluetoothSocket = device.CreateInsecureRfcommSocketToServiceRecord(uuid);
+                if (_bluetoothSocket == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("Failed to create Bluetooth socket");
+                    return false;
+                }
                 await _bluetoothSocket.ConnectAsync();
+                if (!_bluetoothSocket.IsConnected)
+                {
+                    System.Diagnostics.Debug.WriteLine("Failed to connect to Bluetooth socket");
+                    return false;
+                }
                 return _bluetoothSocket.IsConnected;
             }
 
@@ -57,6 +77,22 @@ namespace DisplayApp.Platforms.Android
                 return false;
             }
         }
+        //for both send and receive, EnsureConnected will ensure that the passed values are not null for _bluetoothSocket and Input- and Output stream
+        public async Task SendTextAsync(string text)
+        {
+            EnsureConnected();
+            byte[] buffer = Encoding.UTF8.GetBytes(text);
+            await _bluetoothSocket!.OutputStream!.WriteAsync(buffer);
+        }
+
+        public async Task<string> ReceiveTextAsync()
+        {
+            EnsureConnected();
+            byte[] buffer = new byte[1024];
+            int bytesRead = await _bluetoothSocket!.InputStream!.ReadAsync(buffer);
+            return Encoding.UTF8.GetString(buffer, 0, bytesRead);
+        }
+
         public Task<bool> DisconnectAsync()
         {
             try

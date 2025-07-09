@@ -5,6 +5,8 @@
     {
         bool IsConnected { get; }
         Task<bool> ConnectAsync();
+        Task SendTextAsync(string text);
+        Task<string> ReceiveTextAsync();
         Task<bool> DisconnectAsync();
     }
 
@@ -14,6 +16,16 @@
         public bool IsConnected => throw new NotImplementedException();
 
         public Task<bool> ConnectAsync()
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task SendTextAsync(string text)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<string> ReceiveTextAsync()
         {
             throw new NotImplementedException();
         }
