@@ -70,7 +70,7 @@ namespace DisplayLogic.Tests.Services
 
             // 2. Test Home Assistant basic response
             using var httpClient = new HttpClient();
-            httpClient.Timeout = TimeSpan.FromSeconds(5);
+            httpClient.Timeout = TimeSpan.FromSeconds(60);
             var response = await httpClient.GetAsync("http://homeassistant:8123");
             Assert.True(response.IsSuccessStatusCode);
         }
