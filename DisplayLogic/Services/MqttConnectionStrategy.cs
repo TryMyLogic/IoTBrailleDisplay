@@ -17,7 +17,7 @@ namespace DisplayLogic.Services
             _mqttClient = mqttClient;
             _mqttClient.ApplicationMessageReceivedAsync += e =>
             {
-                var payload = Encoding.UTF8.GetString(e.ApplicationMessage.Payload);
+                string payload = Encoding.UTF8.GetString(e.ApplicationMessage.Payload);
                 _receivedText = payload;
                 return Task.CompletedTask;
             };
@@ -37,7 +37,7 @@ namespace DisplayLogic.Services
 
         public Task SendTextAsync(string text)
         {
-            var message = new MqttApplicationMessageBuilder()
+            MqttApplicationMessage message = new MqttApplicationMessageBuilder()
                 .WithTopic(TopicSend)
                 .WithPayload(text)
                 .Build();

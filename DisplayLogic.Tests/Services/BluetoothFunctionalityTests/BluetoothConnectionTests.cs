@@ -1,11 +1,24 @@
-using DisplayLogic.Tests.Mocks;
 using DisplayLogic.Services;
+using DisplayLogic.Tests.Mocks;
 using MQTTnet;
 
 namespace DisplayLogic.Tests.Services.BluetoothFunctionalityTests
 {
     public class BrailleDisplayTests
     {
+        private bool IsMqttAvailable(string host, int port)
+        {
+            try
+            {
+                using var client = new System.Net.Sockets.TcpClient();
+                Task task = client.ConnectAsync(host, port);
+                return task.Wait(500);
+            }
+            catch
+            {
+                return false;
+            }
+        }
         [Fact]
         public async Task ConnectAsync_ShouldSetIsConnected_WhenMockSucceeds()
         {
@@ -55,18 +68,19 @@ namespace DisplayLogic.Tests.Services.BluetoothFunctionalityTests
 
         }
 
-        [Fact]
+        [SkippableFact]
         public async Task BrailleDisplay_SendAndReceiveText_Mqtt_Integration_Works()
         {
+            Skip.IfNot(IsMqttAvailable("localhost", 1883), "MQTT broker not running on localhost:1883");
             //Arrange
-            var client = new MqttClientFactory().CreateMqttClient();
-            var options = new MqttClientOptionsBuilder()
+            IMqttClient client = new MqttClientFactory().CreateMqttClient();
+            MqttClientOptions options = new MqttClientOptionsBuilder()
                 .WithTcpServer("localhost", 1883)
                 .WithClientId("TestClient")
                 .Build();
 
             var strategy = new MqttConnectionStrategy(client);
-            BrailleDisplay braille = new BrailleDisplay(strategy);
+            BrailleDisplay braille = new(strategy);
 
             await braille.ConnectAsync();
 
@@ -75,9 +89,9 @@ namespace DisplayLogic.Tests.Services.BluetoothFunctionalityTests
 
             await braille.SendTextAsync(message);
 
-            var responder = new MqttClientFactory().CreateMqttClient();
+            IMqttClient responder = new MqttClientFactory().CreateMqttClient();
             await responder.ConnectAsync(options);
-            var msg = new MqttApplicationMessageBuilder()
+            MqttApplicationMessage msg = new MqttApplicationMessageBuilder()
                 .WithTopic("braille/receive")
                 .WithPayload(message)
                 .Build();
