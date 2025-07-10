@@ -16,8 +16,8 @@ jobs:
         image: eclipse-mosquitto:2.0
         ports:
           - 1883:1883
-        volumes:
-          - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+        options: >-
+          --mount type=bind,source=${{ github.workspace }}/mosquitto.conf,target=/mosquitto/config/mosquitto.conf
 
       homeassistant:
         image: ghcr.io/home-assistant/home-assistant:stable
