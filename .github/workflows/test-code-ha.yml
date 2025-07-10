@@ -29,6 +29,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4 # Duplicate code into the CI/CD runner
 
+      - name: Check environment
+        run: |
+          echo "Running on $(uname -a)"
+          echo "Docker version:"
+          docker --version || echo "Docker CLI not available"
+          echo "Are we inside a container?"
+          cat /proc/1/cgroup || echo "No cgroup info"
+
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
