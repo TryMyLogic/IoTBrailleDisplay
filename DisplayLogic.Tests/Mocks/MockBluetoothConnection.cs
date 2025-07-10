@@ -26,5 +26,15 @@ namespace DisplayApp.Tests.Mocks
         {
             IsConnected = false;
         }
+
+        public Task<string> ReceiveTextAsync()
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task SendTextAsync(string text)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
