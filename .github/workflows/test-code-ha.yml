@@ -17,7 +17,7 @@ jobs:
         ports:
           - 1883:1883
         options: >-
-          --mount type=bind,source=${{ github.workspace }}/mosquitto.conf,target=/mosquitto/config/mosquitto.conf
+          --mount type=bind,source=${{ github.workspace }}/config,target=/mosquitto/config,readonly
 
       homeassistant:
         image: ghcr.io/home-assistant/home-assistant:stable
