@@ -62,18 +62,37 @@ namespace DisplayLogic.Tests.Services
         [SkippableFact]
         public async Task Should_Connect_To_HomeAssistant_And_MQTT()
         {
-            // 1. Test Mosquitto
-            IoTDevice mqttDevice = new("test.mosquitto.org", "http://localhost:8123");
-            await Task.Delay(TimeSpan.FromSeconds(60)); // Wait for Mosquitto to start
+            // Use localhost for both services to test the GitHub Actions containers
+            IoTDevice mqttDevice = new("localhost", "http://localhost:8123");
+
+            // Try connecting to MQTT
             await mqttDevice.ConnectAsync();
             Assert.True(mqttDevice.IsConnected);
 
-            // 2. Test Home Assistant basic response
-            using var httpClient = new HttpClient();
-            httpClient.Timeout = TimeSpan.FromSeconds(60);
-            var response = await httpClient.GetAsync("http://localhost:8123");
-            Assert.True(response.IsSuccessStatusCode);
-        }
+            // Wait for Home Assistant (in case it’s still initializing)
+            using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+            var success = false;
 
+            for (int i = 0; i < 12; i++) // Retry for up to 60s
+            {
+                try
+                {
+                    var res = await httpClient.GetAsync("http://localhost:8123/.well-known/core");
+                    if (res.IsSuccessStatusCode)
+                    {
+                        success = true;
+                        break;
+                    }
+                }
+                catch
+                {
+                    // ignored
+                }
+
+                await Task.Delay(5000);
+            }
+
+            Assert.True(success, "Home Assistant was not reachable after 60 seconds");
+        }
     }
 }
