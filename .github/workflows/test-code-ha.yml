@@ -27,28 +27,12 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4 # Duplicate code into the CI/CD runner
+        uses: actions/checkout@v4
 
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
-
-      - name: Clean up any existing Home Assistant container
-        run: |
-          docker ps -aq --filter "name=homeassistant" | grep -q . && docker rm -f homeassistant || true
-
-      - name: Check for processes on port 8123
-        run: |
-          echo "Checking for listeners on port 8123"
-          sudo lsof -i :8123 || echo "Nothing found on 8123"
-
-          echo "Active containers publishing 8123:"
-          docker ps --filter "publish=8123"
-
-      - name: Start Home Assistant
-        run: |
-          docker run -d --name homeassistant -p 8123:8123 ghcr.io/home-assistant/home-assistant:stable
 
       - name: Wait for Home Assistant
         run: |
@@ -64,6 +48,7 @@ jobs:
           done
           if [ "$STATUS" != "200" ]; then
             echo "Error: Home Assistant did not become ready."
+            docker logs $(docker ps -q --filter name=homeassistant)
             exit 1
           fi
 
@@ -81,12 +66,10 @@ jobs:
       - name: Cache NuGet packages
         uses: actions/cache@v4
         with:
-          path: ~\.nuget\packages
+          path: ~/.nuget/packages
           key: v1-${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.sln') }}
           restore-keys: |
             v1-${{ runner.os }}-nuget-
-        # Note: Change 'v1-' to 'v2-' to invalidate cache if dotnet-format version changes.
-        # Alternatively, clear caches manually in GitHub UI: Actions > Caches > Delete.
 
       - name: Restore dependencies
         run: |
@@ -98,8 +81,9 @@ jobs:
           dotnet build DisplayLogic/DisplayLogic.csproj --configuration Release --no-restore
           dotnet build DisplayLogic.Tests/DisplayLogic.Tests.csproj --configuration Release --no-restore
 
-      - name: Dump Home Assistant logs
-        run: docker logs $(docker ps -q --filter ancestor=homeassistant/home-assistant)
+      - name: Dump Home Assistant logs (if needed)
+        if: failure()
+        run: docker logs $(docker ps -q --filter name=homeassistant)
 
       - name: Run tests
         run: dotnet test DisplayLogic.Tests/DisplayLogic.Tests.csproj --no-build --configuration Release --verbosity normal # Run test project only
