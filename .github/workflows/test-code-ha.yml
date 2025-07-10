@@ -38,6 +38,14 @@ jobs:
         run: |
           docker ps -aq --filter "name=homeassistant" | grep -q . && docker rm -f homeassistant || true
 
+      - name: Check for processes on port 8123
+        run: |
+          echo "Checking for listeners on port 8123"
+          sudo lsof -i :8123 || echo "Nothing found on 8123"
+
+          echo "Active containers publishing 8123:"
+          docker ps --filter "publish=8123"
+
       - name: Start Home Assistant
         run: |
           docker run -d --name homeassistant -p 8123:8123 ghcr.io/home-assistant/home-assistant:stable
