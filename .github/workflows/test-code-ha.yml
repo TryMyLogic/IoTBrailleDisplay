@@ -42,6 +42,10 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
+      - name: Start Home Assistant
+        run: |
+          docker run -d --name homeassistant -p 8123:8123 ghcr.io/home-assistant/home-assistant:stable
+
       - name: Wait for Home Assistant
         run: |
           echo "Waiting for Home Assistant..."
