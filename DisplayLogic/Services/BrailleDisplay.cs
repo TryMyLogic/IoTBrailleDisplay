@@ -21,12 +21,13 @@
             _ = await _connectionStrategy.DisconnectAsync();
         }
 
-        public async Task ReceiveTextAsync()
+        public async Task<string> ReceiveTextAsync()
         {
             if (!_connectionStrategy.IsConnected)
-                return;
+                return string.Empty;
             string text = await _connectionStrategy.ReceiveTextAsync();
             TextReceived?.Invoke(this, EventArgs.Empty);
+            return text;
         }
 
         public async Task SendTextAsync(string text)

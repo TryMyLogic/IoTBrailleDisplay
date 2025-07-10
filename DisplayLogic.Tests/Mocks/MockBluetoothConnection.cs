@@ -1,10 +1,11 @@
 ﻿using DisplayLogic.Services;
 
-namespace DisplayApp.Tests.Mocks
+namespace DisplayLogic.Tests.Mocks
 {
     public class MockBluetoothConnection : IConnectionStrategy
     {
         private readonly bool _connectSucceed;
+        private string? _receivedText;
 
         public MockBluetoothConnection(bool connectSucceed = true)
         {
@@ -29,12 +30,13 @@ namespace DisplayApp.Tests.Mocks
 
         public Task<string> ReceiveTextAsync()
         {
-            throw new NotImplementedException();
+            return Task.FromResult(_receivedText ?? string.Empty);
         }
 
         public Task SendTextAsync(string text)
         {
-            throw new NotImplementedException();
+            _receivedText = text;
+            return Task.CompletedTask;
         }
     }
 }
