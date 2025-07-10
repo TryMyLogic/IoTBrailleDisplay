@@ -16,6 +16,11 @@ jobs:
         image: eclipse-mosquitto:2.0
         ports:
           - 1883:1883
+        options: >-
+          --health-cmd "mosquitto_sub -h localhost -t 'test' -C 1 || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 3
 
       homeassistant:
         image: ghcr.io/home-assistant/home-assistant:stable
@@ -45,6 +50,12 @@ jobs:
 
           echo "Active containers publishing 8123:"
           docker ps --filter "publish=8123"
+
+      - name: Check MQTT broker connection from runner
+        run: |
+          sudo apt-get update && sudo apt-get install -y mosquitto-clients
+          mosquitto_sub -h localhost -t 'test' -C 1 &
+          mosquitto_pub -h localhost -t 'test' -m 'hello'
 
       - name: Wait for Home Assistant
         run: |

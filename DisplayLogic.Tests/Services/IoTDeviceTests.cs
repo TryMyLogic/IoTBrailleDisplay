@@ -77,7 +77,7 @@ namespace DisplayLogic.Tests.Services
             {
                 try
                 {
-                    var res = await httpClient.GetAsync("http://localhost:8123/.well-known/core");
+                    var res = await httpClient.GetAsync("http://homeassistant:8123/.well-known/core");
                     if (res.IsSuccessStatusCode)
                     {
                         success = true;
