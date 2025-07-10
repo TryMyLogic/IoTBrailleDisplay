@@ -21,14 +21,20 @@
             _ = await _connectionStrategy.DisconnectAsync();
         }
 
-        public Task ReceiveTextAsync()
+        public async Task<string> ReceiveTextAsync()
         {
-            throw new NotImplementedException();
+            if (!_connectionStrategy.IsConnected)
+                return string.Empty;
+            string text = await _connectionStrategy.ReceiveTextAsync();
+            TextReceived?.Invoke(this, EventArgs.Empty);
+            return text;
         }
 
-        public Task SendTextAsync(string text)
+        public async Task SendTextAsync(string text)
         {
-            throw new NotImplementedException();
+            if (!_connectionStrategy.IsConnected)
+                return;
+            await _connectionStrategy.SendTextAsync(text);
         }
     }
 }

@@ -15,7 +15,7 @@
         Task SendTextAsync(string text);
 
         // Receives text from the braille display to interact with IoT via MAUI app
-        Task ReceiveTextAsync();
+        Task<string> ReceiveTextAsync();
 
         // Used to alert other areas of code
         event EventHandler? TextReceived;
