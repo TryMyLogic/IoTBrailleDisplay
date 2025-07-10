@@ -1,112 +1,34 @@
-name: TestCode
+name: MQTT Integration Tests
 
 on:
   push:
+    branches: [ main ]
   pull_request:
-    branches:
-      - master
+    branches: [ main ]
 
 jobs:
   test:
-    name: Run Tests
     runs-on: ubuntu-latest
 
-    services:
-      mosquitto:
-        image: eclipse-mosquitto:2.0
-        ports:
-          - 1883:1883
-        options: >-
-          --health-cmd "mosquitto_sub -h localhost -t 'test' -C 1 || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 3
-
-      homeassistant:
-        image: ghcr.io/home-assistant/home-assistant:stable
-        options: --privileged
-        ports:
-          - 8123:8123
-        env:
-          TZ: "UTC"
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v3
 
-      - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v4
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v3
         with:
-          dotnet-version: "8.0.x"
+          dotnet-version: '8.0.x'
 
-      - name: Clean up any existing Home Assistant container
-        run: |
-          docker ps -aq --filter "name=homeassistant" | grep -q . && docker rm -f homeassistant || true
-
-      - name: Check for processes on port 8123
-        run: |
-          echo "Checking for listeners on port 8123"
-          sudo lsof -i :8123 || echo "Nothing found on 8123"
-
-          echo "Active containers publishing 8123:"
-          docker ps --filter "publish=8123"
-
-      - name: Check MQTT broker connection from runner
-        run: |
-          sudo apt-get update && sudo apt-get install -y mosquitto-clients
-          mosquitto_sub -h localhost -t 'test' -C 1 &
-          mosquitto_pub -h localhost -t 'test' -m 'hello'
-
-      - name: Wait for Home Assistant
-        run: |
-          echo "Waiting for Home Assistant..."
-          for i in {1..60}; do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8123/)
-            if [ "$STATUS" == "200" ]; then
-              echo "Home Assistant is ready!"
-              break
-            fi
-            echo "Still waiting..."
-            sleep 5
-          done
-          if [ "$STATUS" != "200" ]; then
-            echo "Error: Home Assistant did not become ready."
-            docker logs $(docker ps -q --filter name=homeassistant)
-            exit 1
-          fi
+      - name: Start Mosquitto
+        run: docker-compose up -d
 
       - name: Wait for Mosquitto
         run: |
-          for i in {1..60}; do
-            if nc -z localhost 1883; then
-              echo "Mosquitto is up!"
-              break
-            fi
+          for i in {1..10}; do
+            nc -z localhost 1883 && echo "Mosquitto is up!" && break
             echo "Waiting for Mosquitto..."
-            sleep 2
+            sleep 3
           done
 
-      - name: Cache NuGet packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.nuget/packages
-          key: v1-${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.sln') }}
-          restore-keys: |
-            v1-${{ runner.os }}-nuget-
-
-      - name: Restore dependencies
-        run: |
-          dotnet restore DisplayLogic/DisplayLogic.csproj --verbosity normal
-          dotnet restore DisplayLogic.Tests/DisplayLogic.Tests.csproj --verbosity normal
-
-      - name: Build projects
-        run: |
-          dotnet build DisplayLogic/DisplayLogic.csproj --configuration Release --no-restore
-          dotnet build DisplayLogic.Tests/DisplayLogic.Tests.csproj --configuration Release --no-restore
-
-      - name: Dump Home Assistant logs (if needed)
-        if: failure()
-        run: docker logs $(docker ps -q --filter name=homeassistant)
-
-      - name: Run tests
-        run: dotnet test DisplayLogic.Tests/DisplayLogic.Tests.csproj --no-build --configuration Release --verbosity normal # Run test project only
+      - name: Run Unit Tests
+        run: dotnet test --verbosity normal
+        working-directory: DisplayLogic.Tests
