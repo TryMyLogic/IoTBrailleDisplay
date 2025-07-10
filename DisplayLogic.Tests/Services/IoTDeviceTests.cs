@@ -63,7 +63,7 @@ namespace DisplayLogic.Tests.Services
         public async Task Should_Connect_To_HomeAssistant_And_MQTT()
         {
             // Use localhost for both services to test the GitHub Actions containers
-            IoTDevice mqttDevice = new("mosquitto", "http://localhost:8123");
+            IoTDevice mqttDevice = new("localhost", "http://localhost:8123");
 
             // Try connecting to MQTT
             await mqttDevice.ConnectAsync();
