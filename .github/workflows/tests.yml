@@ -2,9 +2,9 @@ name: MQTT Integration Tests
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   test:
@@ -16,10 +16,22 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v3
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: "8.0.x"
 
       - name: Start Mosquitto
         run: docker-compose up -d
+
+      - name: Wait for Mosquitto to be healthy
+        run: |
+          for i in {1..10}; do
+            HEALTH=$(docker inspect --format='{{.State.Health.Status}}' iotbrailledisplay-mosquitto-1 2>/dev/null || echo "starting")
+            echo "Mosquitto health: $HEALTH"
+            if [ "$HEALTH" = "healthy" ]; then
+              echo "✅ Mosquitto is healthy"
+              break
+            fi
+            sleep 5
+          done
 
       - name: Wait for Mosquitto
         run: |

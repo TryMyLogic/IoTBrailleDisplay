@@ -9,10 +9,10 @@ services:
     volumes:
       - ./mosquitto.conf:/mosquitto.conf
     healthcheck:
-      test: ["CMD", "mosquitto_sub", "-h", "localhost", "-t", "test"]
+      test: ["CMD", "mosquitto_sub", "-h", "localhost", "-t", "test", "-C", "1"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
 networks:
   mqttnet:
