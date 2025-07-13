@@ -18,13 +18,17 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v3
         with:
-          dotnet-version: '8.0.x'  # or whatever version you're using
+          dotnet-version: "8.0.x"
 
       - name: Restore dependencies
-        run: dotnet restore
+        run: |
+          dotnet restore DisplayLogic/DisplayLogic.csproj --verbosity normal
+          dotnet restore DisplayLogic.Tests/DisplayLogic.Tests.csproj --verbosity normal
 
-      - name: Build
-        run: dotnet build --no-restore
+      - name: Build projects
+        run: |
+          dotnet build DisplayLogic/DisplayLogic.csproj --configuration Release --no-restore
+          dotnet build DisplayLogic.Tests/DisplayLogic.Tests.csproj --configuration Release --no-restore
 
-      - name: Run Tests
-        run: dotnet test --no-build
+      - name: Run tests
+        run: dotnet test DisplayLogic.Tests/DisplayLogic.Tests.csproj --no-build --configuration Release --verbosity normal # Run test project only
