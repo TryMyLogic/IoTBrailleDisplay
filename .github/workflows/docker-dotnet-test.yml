@@ -11,12 +11,17 @@ jobs:
         image: eclipse-mosquitto:2.0
         ports:
           - 1883:1883
+        options: >-
+          --health-cmd "mosquitto_pub -h localhost -p 1883 -t health -m test || exit 1"
+          --health-interval 5s
+          --health-timeout 10s
+          --health-retries 10
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v3
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
 
@@ -31,4 +36,4 @@ jobs:
           dotnet build DisplayLogic.Tests/DisplayLogic.Tests.csproj --configuration Release --no-restore
 
       - name: Run tests
-        run: dotnet test DisplayLogic.Tests/DisplayLogic.Tests.csproj --no-build --configuration Release --verbosity normal # Run test project only
+        run: dotnet test DisplayLogic.Tests/DisplayLogic.Tests.csproj --no-build --configuration Release --verbosity normal
