@@ -4,7 +4,7 @@ namespace DisplayLogic.Tests.Services
 {
     public class IoTDeviceTests
     {
-        private const string TestBroker = "localhost";
+        private const string TestBroker = "test.mosquitto.org"; // Public MQTT broker for testing
         private const string TestRestEndpoint = "http://localhost/api";
 
         [SkippableFact]
