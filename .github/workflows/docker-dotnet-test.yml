@@ -1,10 +1,6 @@
-name: .NET Tests
+name: Run Tests with Mosquitto
 
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+on: [push, pull_request]
 
 jobs:
   test:
@@ -16,32 +12,13 @@ jobs:
         ports:
           - 1883:1883
 
-      homeassistant:
-        image: ghcr.io/home-assistant/home-assistant:stable
-        ports:
-          - 8123:8123
-        options: >-
-          --privileged
-          --health-cmd "curl -sSf http://localhost:8123 || exit 1"
-          --health-interval 30s
-          --health-timeout 10s
-          --health-retries 10
-
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v3
         with:
-          dotnet-version: "8.0.x"
-
-      - name: Wait for Home Assistant to be healthy
-        run: |
-          for i in {1..30}; do
-            echo "Checking Home Assistant..."
-            curl -sSf http://localhost:8123 && break
-            sleep 10
-          done
+          dotnet-version: '8.0.x'  # or whatever version you're using
 
       - name: Restore dependencies
         run: dotnet restore
@@ -49,5 +26,5 @@ jobs:
       - name: Build
         run: dotnet build --no-restore
 
-      - name: Run tests
-        run: dotnet test --no-build --verbosity normal
+      - name: Run Tests
+        run: dotnet test --no-build
