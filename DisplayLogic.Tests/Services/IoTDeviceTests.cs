@@ -58,15 +58,5 @@ namespace DisplayLogic.Tests.Services
                 return device.PublishAsync("iot/test", "payload");
             });
         }
-
-        //Simple integration test to check if Home Assistant and MQTT are reachable
-        //[SkippableFact]
-        //public async Task Should_Connect_To_HomeAssistant_And_MQTT()
-        //{
-        //    IoTDevice mqttDevice = new("localhost", ""); // Home Assistant skipped for now
-
-        //    await mqttDevice.ConnectAsync();
-        //    Assert.True(mqttDevice.IsConnected);
-        //}
     }
 }
