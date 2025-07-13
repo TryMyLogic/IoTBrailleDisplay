@@ -10,7 +10,6 @@ namespace DisplayLogic.Tests.Services
         [SkippableFact]
         public async Task Should_Connect_To_Mqtt_Broker()
         {
-            await Task.Delay(3000); // Wait for the MQTT broker to be ready
             IoTDevice device = new(TestBroker, TestRestEndpoint);
             await device.ConnectAsync();
 
