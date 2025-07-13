@@ -28,6 +28,7 @@ namespace DisplayLogic.Services
 
             _mqttOptions = new MqttClientOptionsBuilder()
            .WithTcpServer(_mqttBroker, _mqttPort)
+           .WithClientId("TestClient")
            .WithCleanSession()
            .Build();
 
