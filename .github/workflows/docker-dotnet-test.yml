@@ -1,9 +1,14 @@
 name: Run Tests with Mosquitto
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
   test:
+    name: Run MQTT Tests
     runs-on: ubuntu-latest
 
     services:
