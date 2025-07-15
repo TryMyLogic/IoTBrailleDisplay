@@ -33,9 +33,9 @@ namespace DisplayLogic.Services
                 await _socket.ConnectAsync(new Uri(_wsUrl), CancellationToken.None);
                 await ReceiveMessagesAsync();
             }
-            catch (Exception ex)
+            catch
             {
-                await LogAsync($"Connection error: {ex.Message}");
+                throw; // Whatever class uses this underlying should handle this exception accordingly
             }
         }
 

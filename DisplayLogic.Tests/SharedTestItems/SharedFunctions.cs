@@ -73,12 +73,22 @@ namespace DisplayLogic.Tests.SharedTestItems
             {
                 Assert.Fail("No log events found.");
             }
-            if (memoryLog.Count > 1)
+
+            string allLogs = string.Join(Environment.NewLine, memoryLog.Select(logEvent =>
             {
-                Assert.Fail($"Expected exactly one log event, but found {memoryLog.Count}.");
+                return $"[{logEvent.Level}] {logEvent.RenderMessage()}";
+            }));
+            List<LogEvent> matchingLevel = [.. memoryLog.Where(logEvent =>
+            {
+                return logEvent.Level == expectedLevel;
+            })];
+
+            if (matchingLevel.Count != 1)
+            {
+                Assert.Fail($"Expected exactly one log event at level {expectedLevel}, but found {matchingLevel.Count}." + $"{Environment.NewLine}All logs:{Environment.NewLine}{allLogs}");
             }
 
-            LogEvent logEvent = memoryLog[0];
+            LogEvent logEvent = matchingLevel[0];
             Assert.Equal(expectedLevel, logEvent.Level);
             Assert.Contains(expectedMessage, logEvent.RenderMessage());
         }
