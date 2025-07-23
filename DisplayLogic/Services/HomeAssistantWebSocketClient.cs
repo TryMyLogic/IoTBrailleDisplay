@@ -11,7 +11,7 @@ namespace DisplayLogic.Services
         private readonly string _accessToken;
         private int _lastCommandId = 0;
         private readonly IUserNotifier _notifier;
-        private readonly ILogger<HomeAssistantWebSocketClient>? _logger;
+        private readonly ILogger<HomeAssistantWebSocketClient> _logger;
 
         public event Action<string>? DeviceRegistryReceived;
 
@@ -30,6 +30,23 @@ namespace DisplayLogic.Services
             {
                 await OnPayloadReceived(payload);
             };
+        }
+
+
+        private TaskCompletionSource<bool>? _authSuccessTcs;
+        private TaskCompletionSource<Exception>? _authFailureTcs;
+
+        public Task WaitForAuthCompletionAsync()
+        {
+            _authSuccessTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _authFailureTcs = new TaskCompletionSource<Exception>(TaskCreationOptions.RunContinuationsAsynchronously);
+            return Task.WhenAny(_authSuccessTcs.Task, _authFailureTcs.Task).ContinueWith(t =>
+            {
+                if (t.Result == _authFailureTcs.Task)
+                {
+                    throw _authFailureTcs.Task.Result;
+                }
+            });
         }
 
         public async Task StartAsync()
@@ -59,7 +76,15 @@ namespace DisplayLogic.Services
                     }
                     else if (type == "auth_ok")
                     {
+                        _ = _authSuccessTcs?.TrySetResult(true);
                         await SendDeviceRegistryCommandAsync();
+                    }
+                    else if (type == "auth_invalid")
+                    {
+                        InvalidOperationException ex = new("WebSocket auth failed: Invalid token.");
+                        _ = _authFailureTcs?.TrySetResult(ex);
+                        _logger.LogError(ex, "WebSocket auth failed: Invalid token.");
+                        await _notifier.NotifyAsync("Error", ex.Message);
                     }
                     else if (type == "result")
                     {
@@ -92,6 +117,7 @@ namespace DisplayLogic.Services
                 access_token = _accessToken
             };
             string jsonString = JsonSerializer.Serialize(authCommand);
+            _logger.LogInformation("Sending auth command: {Command}", jsonString);
             return _webSocketClient.SendAsync(jsonString);
         }
 
@@ -104,6 +130,7 @@ namespace DisplayLogic.Services
                 type = "config/device_registry/list"
             };
             string jsonString = JsonSerializer.Serialize(deviceRegistryCommand);
+            _logger.LogInformation("Sending device registry command: {Command}", jsonString);
             return _webSocketClient.SendAsync(jsonString);
         }
     }
