@@ -27,11 +27,11 @@ namespace DisplayLogic.Services
         {
             if (!_mqttClient.IsConnected)
             {
-                await _mqttClient.ConnectAsync(new MqttClientOptionsBuilder()
+                _ = await _mqttClient.ConnectAsync(new MqttClientOptionsBuilder()
                     .WithTcpServer("localhost")
                     .Build());
             }
-            await _mqttClient.SubscribeAsync(TopicReceive);
+            _ = await _mqttClient.SubscribeAsync(TopicReceive);
             return _mqttClient.IsConnected;
         }
 
@@ -50,7 +50,10 @@ namespace DisplayLogic.Services
 
         public Task<bool> DisconnectAsync()
         {
-            return _mqttClient.DisconnectAsync().ContinueWith(x => true);
+            return _mqttClient.DisconnectAsync().ContinueWith(x =>
+            {
+                return true;
+            });
         }
     }
 }
