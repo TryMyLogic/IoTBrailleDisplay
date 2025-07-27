@@ -2,6 +2,7 @@
 using Android.Bluetooth;
 using Android.Content;
 using DisplayLogic.Services;
+using Serilog;
 
 namespace DisplayApp.Platforms.Android
 {
@@ -30,41 +31,41 @@ namespace DisplayApp.Platforms.Android
 
                 if (context == null)
                 {
-                    System.Diagnostics.Debug.WriteLine("Context is null");
+                    Log.Warning("Context is null");
                 }
 
                 BluetoothManager? bluetoothManager = (BluetoothManager?)context?.GetSystemService(Context.BluetoothService);
 
                 if (bluetoothManager == null)
                 {
-                    System.Diagnostics.Debug.WriteLine("BluetoothManager is not available");
+                    Log.Warning("BluetoothManager is not available");
                     return false;
                 }
 
                 _adapter = bluetoothManager?.Adapter;
                 if (_adapter == null || !_adapter.IsEnabled)
                 {
-                    System.Diagnostics.Debug.WriteLine("Bluetooth adapter is not available or not enabled");
+                    Log.Warning("Bluetooth adapter is not available or not enabled");
                     return false;
                 }
 
                 BluetoothDevice? device = _adapter.BondedDevices?.FirstOrDefault();
                 if (device == null)
                 {
-                    System.Diagnostics.Debug.WriteLine("No Paired Bluetooth devices found");
+                    Log.Warning("No Paired Bluetooth devices found");
                     return false;
                 }
 
                 _bluetoothSocket = device.CreateInsecureRfcommSocketToServiceRecord(uuid);
                 if (_bluetoothSocket == null)
                 {
-                    System.Diagnostics.Debug.WriteLine("Failed to create Bluetooth socket");
+                    Log.Error("Failed to create Bluetooth socket");
                     return false;
                 }
                 await _bluetoothSocket.ConnectAsync();
                 if (!_bluetoothSocket.IsConnected)
                 {
-                    System.Diagnostics.Debug.WriteLine("Failed to connect to Bluetooth socket");
+                    Log.Error("Failed to connect to Bluetooth socket");
                     return false;
                 }
                 return _bluetoothSocket.IsConnected;
@@ -72,24 +73,42 @@ namespace DisplayApp.Platforms.Android
 
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Android Bluetooth failed {ex.Message}");
+                Log.Error($"Android Bluetooth failed {ex.Message}");
                 return false;
             }
         }
         //for both send and receive, EnsureConnected will ensure that the passed values are not null for _bluetoothSocket and Input- and Output stream
         public async Task SendTextAsync(string text)
         {
-            EnsureConnected();
-            byte[] buffer = Encoding.UTF8.GetBytes(text);
-            await _bluetoothSocket!.OutputStream!.WriteAsync(buffer);
+            try
+            {
+                EnsureConnected();
+                byte[] buffer = Encoding.UTF8.GetBytes(text);
+                await _bluetoothSocket!.OutputStream!.WriteAsync(buffer);
+                Log.Information($"Sending text via Bluetooth: {text}.");
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error sending text over Bluetooth.");
+                throw;
+            }
         }
 
         public async Task<string> ReceiveTextAsync()
         {
-            EnsureConnected();
-            byte[] buffer = new byte[1024];
-            int bytesRead = await _bluetoothSocket!.InputStream!.ReadAsync(buffer);
-            return Encoding.UTF8.GetString(buffer, 0, bytesRead);
+            try
+            {
+                EnsureConnected();
+                byte[] buffer = new byte[1024];
+                int bytesRead = await _bluetoothSocket!.InputStream!.ReadAsync(buffer);
+                string received = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+                return received;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error receiving text over Bluetooth.");
+                throw;
+            }
         }
 
         public Task<bool> DisconnectAsync()
@@ -98,11 +117,13 @@ namespace DisplayApp.Platforms.Android
             {
                 _bluetoothSocket?.Close();
                 _bluetoothSocket = null;
+                Log.Information("Disconnecting Bluetooth device.");
                 return Task.FromResult(true);
             }
 
-            catch
+            catch (Exception ex)
             {
+                Log.Error(ex, "Error during Bluetooth disconnect");
                 return Task.FromResult(false);
             }
         }
