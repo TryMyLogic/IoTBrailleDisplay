@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using DisplayLogic.Models;
 using DisplayLogic.Services;
 using DisplayLogic.SharedInterfaces;
 using DisplayLogic.Tests.SharedTestItems;
@@ -65,11 +66,11 @@ namespace DisplayLogic.Tests.Services.HomeAssistantWebSocketClientTests
             _homeAssistantWebSocketClient = new(_webSocketClient, _userNotifier, _accessToken, _memoryLogger);
 
             bool deviceRegistryReceived = false;
-            string? receivedDeviceRegistry = null;
-            _homeAssistantWebSocketClient.DeviceRegistryReceived += (registry) =>
+            List<MqttDevice>? receivedDeviceRegistry = null;
+            _homeAssistantWebSocketClient.DeviceRegistryReceivedAndProcessed += (mqttDevices) =>
             {
                 deviceRegistryReceived = true;
-                receivedDeviceRegistry = registry;
+                receivedDeviceRegistry = mqttDevices;
             };
 
             // Act
@@ -86,7 +87,7 @@ namespace DisplayLogic.Tests.Services.HomeAssistantWebSocketClientTests
                 Assert.Fail($"{ex.Message}");
             }
 
-            var waitTask = Task.Run(async () =>
+            Task waitTask = Task.Run(async () =>
             {
                 while (!deviceRegistryReceived)
                 {
@@ -106,17 +107,9 @@ namespace DisplayLogic.Tests.Services.HomeAssistantWebSocketClientTests
             SharedFunctions.AssertLogEventContainsMessage(_memorySink, LogEventLevel.Information, "Sending auth command", debugLogger: _testLogger, expectedMatchCount: 1);
             SharedFunctions.AssertLogEventContainsMessage(_memorySink, LogEventLevel.Information, "Sending device registry command", debugLogger: _testLogger, expectedMatchCount: 1);
 
-            Assert.True(deviceRegistryReceived, "DeviceRegistryReceived event was not triggered.");
-            Assert.False(string.IsNullOrEmpty(receivedDeviceRegistry), "Received device registry JSON is empty.");
-
-            try
-            {
-                _ = JsonDocument.Parse(receivedDeviceRegistry);
-            }
-            catch (JsonException ex)
-            {
-                Assert.Fail($"Received device registry JSON is invalid: {ex.Message}");
-            }
+            Assert.True(deviceRegistryReceived, "DeviceRegistryReceivedAndProcessed event was not triggered.");
+            Assert.NotNull(receivedDeviceRegistry);
+            Assert.NotEmpty(receivedDeviceRegistry);
 
             _memoryLoggerFactory?.Dispose();
         }

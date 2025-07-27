@@ -34,7 +34,7 @@ namespace DisplayLogic.Tests.SharedTestItems
 
                 TaskCompletionSource<bool> tcs = new();
 
-                client.DeviceRegistryReceived += x =>
+                client.DeviceRegistryReceivedAndProcessed += x =>
                 {
                     _ = tcs.TrySetResult(true);
                 };
