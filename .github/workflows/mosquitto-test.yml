@@ -23,8 +23,17 @@ jobs:
             -p 1883:1883 \
             -v "${PWD}/.github/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf" \
             eclipse-mosquitto:2.0
-          echo "Waiting for Mosquitto..."
-          sleep 5  # optional: let broker fully start
+
+          echo "Waiting for Mosquitto to be ready..."
+
+          for i in {1..10}; do
+            if docker exec mosquitto-test mosquitto_pub -h localhost -t test -m "ping"; then
+              echo "Mosquitto is ready!"
+              break
+            fi
+            echo "Retrying in 2s..."
+            sleep 2
+          done
 
       - name: Restore dependencies
         run: |
