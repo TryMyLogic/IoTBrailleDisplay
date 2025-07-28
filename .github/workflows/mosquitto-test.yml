@@ -7,25 +7,24 @@ jobs:
     name: Run MQTT Tests
     runs-on: ubuntu-latest
 
-    services:
-      mosquitto:
-        image: eclipse-mosquitto:2.0
-        ports:
-          - 1883:1883
-        options: >-
-          --mount type=bind,source=${{ github.workspace }}/.github/mosquitto/mosquitto.conf,target=/mosquitto/config/mosquitto.conf
-          --health-cmd "mosquitto_pub -h localhost -p 1883 -t health -m test || exit 1"
-          --health-interval 5s
-          --health-timeout 10s
-          --health-retries 10
-
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Setup .NET
+      - name: Set up .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
+
+      - name: Start Mosquitto Broker
+        run: |
+          docker run -d \
+            --name mosquitto-test \
+            -p 1883:1883 \
+            -v "${PWD}/.github/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf" \
+            eclipse-mosquitto:2.0
+          echo "Waiting for Mosquitto..."
+          sleep 5  # optional: let broker fully start
 
       - name: Restore dependencies
         run: |
@@ -39,3 +38,7 @@ jobs:
 
       - name: Run tests
         run: dotnet test DisplayLogic.Tests/DisplayLogic.Tests.csproj --no-build --configuration Release --verbosity normal
+
+      - name: Stop Mosquitto
+        if: always()
+        run: docker stop mosquitto-test && docker rm mosquitto-test
