@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using DisplayLogic.Models;
 using DisplayLogic.SharedInterfaces;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -13,7 +14,7 @@ namespace DisplayLogic.Services
         private readonly IUserNotifier _notifier;
         private readonly ILogger<HomeAssistantWebSocketClient> _logger;
 
-        public event Action<string>? DeviceRegistryReceived;
+        public event Action<List<MqttDevice>>? DeviceRegistryReceivedAndProcessed;
 
         public HomeAssistantWebSocketClient(
             IWebSocketClient webSocketClient,
@@ -47,6 +48,67 @@ namespace DisplayLogic.Services
                     throw _authFailureTcs.Task.Result;
                 }
             });
+        }
+
+        private static List<MqttDevice> ParseMqttDevices(JsonElement resultProp)
+        {
+            List<JsonElement>? allDevices = JsonSerializer.Deserialize<List<JsonElement>>(resultProp);
+
+            if (allDevices == null)
+            {
+                return [];
+            }
+
+            return allDevices
+          ?.Where(device =>
+          {
+              return device.TryGetProperty("identifiers", out JsonElement identifiersProp) &&
+                        identifiersProp.ValueKind == JsonValueKind.Array &&
+                        identifiersProp[0].ValueKind == JsonValueKind.Array &&
+                        identifiersProp[0][0].GetString() == "mqtt";
+          })
+          .Select(device =>
+          {
+              string defaultManufacturer = device.TryGetProperty("default_manufacturer", out JsonElement default_manufacturerProp) && default_manufacturerProp.ValueKind != JsonValueKind.Null ? default_manufacturerProp.GetString()! : "Unknown Manufacturer";
+              string defaultModel = device.TryGetProperty("default_model", out JsonElement defaultModelProp) && defaultModelProp.ValueKind != JsonValueKind.Null ? defaultModelProp.GetString()! : "Unknown Model";
+              string defaultName = device.TryGetProperty("default_name", out JsonElement defaultNameProp) && defaultNameProp.ValueKind != JsonValueKind.Null ? defaultNameProp.GetString()! : "Unknown Device";
+
+              string manufacturer = device.TryGetProperty("manufacturer", out JsonElement manufacturerProp) && manufacturerProp.ValueKind != JsonValueKind.Null ? manufacturerProp.GetString()! : defaultManufacturer;
+              string model = device.TryGetProperty("model", out JsonElement modelProp) && modelProp.ValueKind != JsonValueKind.Null ? modelProp.GetString()! : defaultModel;
+              string name = device.TryGetProperty("name", out JsonElement nameProp) && nameProp.ValueKind != JsonValueKind.Null ? nameProp.GetString()! : defaultName;
+              string id = device.GetProperty("id").GetString()!;
+
+              string[][] identifiersArray = [.. device.GetProperty("identifiers").EnumerateArray()
+              .Select(identifierArray =>
+              {
+                  return identifierArray.EnumerateArray()
+                                    .Select(identifierElement =>
+                                    {
+                                        return identifierElement.GetString()!;
+                                    })
+                                    .ToArray();
+              })];
+
+              return new MqttDevice
+              {
+                  area_id = device.TryGetProperty("area_id", out JsonElement areaIdProp) && areaIdProp.ValueKind != JsonValueKind.Null ? areaIdProp.GetString() : null,
+                  default_manufacturer = defaultManufacturer,
+                  default_model = defaultModel,
+                  default_name = defaultName,
+                  hw_version = device.TryGetProperty("hw_version", out JsonElement hwVersionProp) && hwVersionProp.ValueKind != JsonValueKind.Null ? hwVersionProp.GetString() : null,
+                  id = id,
+                  identifiers = identifiersArray,
+                  manufacturer = manufacturer,
+                  model = model,
+                  model_id = device.TryGetProperty("model_id", out JsonElement modelIdProp) && modelIdProp.ValueKind != JsonValueKind.Null ? modelIdProp.GetString() : null,
+                  name = name,
+                  name_by_user = device.TryGetProperty("name_by_user", out JsonElement nameByUserProp) && nameByUserProp.ValueKind != JsonValueKind.Null ? nameByUserProp.GetString() : null,
+                  serial_number = device.TryGetProperty("serial_number", out JsonElement serialNumberProp) && serialNumberProp.ValueKind != JsonValueKind.Null ? serialNumberProp.GetString() : null,
+                  sw_version = device.TryGetProperty("sw_version", out JsonElement swVersionProp) && swVersionProp.ValueKind != JsonValueKind.Null ? swVersionProp.GetString() : null,
+                  via_device_id = device.TryGetProperty("via_device_id", out JsonElement viaDeviceIdProp) && viaDeviceIdProp.ValueKind != JsonValueKind.Null ? viaDeviceIdProp.GetString() : null
+              };
+          })
+   .ToList() ?? [];
         }
 
         public async Task StartAsync()
@@ -92,8 +154,8 @@ namespace DisplayLogic.Services
                         {
                             if (jsonRoot.TryGetProperty("result", out JsonElement resultProp))
                             {
-                                string deviceRegistryRawJson = resultProp.GetRawText();
-                                DeviceRegistryReceived?.Invoke(deviceRegistryRawJson);
+                                List<MqttDevice> mqttDevices = ParseMqttDevices(resultProp);
+                                DeviceRegistryReceivedAndProcessed?.Invoke(mqttDevices);
                             }
                         }
                     }

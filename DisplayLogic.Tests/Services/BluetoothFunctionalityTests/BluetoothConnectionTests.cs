@@ -61,14 +61,17 @@ namespace DisplayLogic.Tests.Services.BluetoothFunctionalityTests
             var mock = new MockBluetoothConnection();
             var braille = new BrailleDisplay(mock);
             bool eventTriggered = false;
-            braille.TextReceived += (s, e) => eventTriggered = true;
+            braille.TextReceived += (s, e) =>
+            {
+                eventTriggered = true;
+            };
 
             string message = "MQTT connection test string";
 
             //Act
             await braille.ConnectAsync();
             await braille.SendTextAsync(message);
-            await braille.ReceiveTextAsync();
+            _ = await braille.ReceiveTextAsync();
 
             //Assert
             Assert.True(mock.IsConnected);
@@ -100,12 +103,12 @@ namespace DisplayLogic.Tests.Services.BluetoothFunctionalityTests
             await braille.SendTextAsync(message);
 
             IMqttClient responder = new MqttClientFactory().CreateMqttClient();
-            await responder.ConnectAsync(options);
+            _ = await responder.ConnectAsync(options);
             MqttApplicationMessage msg = new MqttApplicationMessageBuilder()
                 .WithTopic("braille/receive")
                 .WithPayload(message)
                 .Build();
-            await responder.PublishAsync(msg, CancellationToken.None);
+            _ = await responder.PublishAsync(msg, CancellationToken.None);
 
             await Task.Delay(200);
 

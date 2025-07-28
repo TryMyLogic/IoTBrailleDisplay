@@ -41,7 +41,10 @@ namespace DisplayApp.Platforms.Windows
                 }
 
                 RfcommDeviceServicesResult rfcommDeviceServices = await _device.GetRfcommServicesAsync();
-                RfcommDeviceService? service = rfcommDeviceServices.Services.FirstOrDefault(s => s.ServiceId.Uuid == PiUuid);
+                RfcommDeviceService? service = rfcommDeviceServices.Services.FirstOrDefault(s =>
+                {
+                    return s.ServiceId.Uuid == PiUuid;
+                });
                 if (service == null)
                 {
                     Log.Warning("No matching Rfcomm service found.");
@@ -111,8 +114,8 @@ namespace DisplayApp.Platforms.Windows
         {
             try
             {
-                _writer?.DetachStream();
-                _reader?.DetachStream();
+                _ = (_writer?.DetachStream());
+                _ = (_reader?.DetachStream());
 
                 _writer?.Dispose();
                 _reader?.Dispose();
