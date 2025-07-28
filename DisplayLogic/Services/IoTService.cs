@@ -3,17 +3,32 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DisplayLogic.Services
 {
-    public class IoTService
+    public class IoTService(IIoTDevice iotDevice, IHomeAssistantWebSocketClient webSocketClient, IBrailleDisplay? brailleDisplay = null, ILogger<IoTService>? logger = null)
     {
-        private readonly IIoTDevice _iotDevice;
-        private readonly IBrailleDisplay _brailleDisplay;
-        private readonly ILogger<IoTService> _logger;
+        private readonly IIoTDevice _iotDevice = iotDevice ?? throw new ArgumentNullException(nameof(iotDevice));
+        private readonly IBrailleDisplay? _brailleDisplay = brailleDisplay;
+        private readonly IHomeAssistantWebSocketClient _webSocketClient = webSocketClient ?? throw new ArgumentNullException(nameof(webSocketClient));
+        private readonly ILogger<IoTService> _logger = logger ?? NullLogger<IoTService>.Instance;
 
-        public IoTService(IIoTDevice iotDevice, IBrailleDisplay brailleDisplay, ILogger<IoTService>? logger = null)
+        public async Task InitializeAsync()
         {
-            _iotDevice = iotDevice ?? throw new ArgumentNullException(nameof(iotDevice));
-            _brailleDisplay = brailleDisplay ?? throw new ArgumentNullException(nameof(brailleDisplay));
-            _logger = logger ?? NullLogger<IoTService>.Instance;
+            _logger.LogInformation("Initializing IoTService...");
+            if (!_iotDevice.IsConnected)
+            {
+                _logger.LogInformation("Connecting to IoT device...");
+                await _iotDevice.ConnectAsync();
+            }
+            if (_brailleDisplay != null && !_brailleDisplay.IsConnected)
+            {
+                _logger.LogInformation("Connecting to Braille Display...");
+                await _brailleDisplay.ConnectAsync();
+            }
+            if (!_webSocketClient.IsConnected)
+            {
+                _logger.LogInformation("Connecting to Home Assistant WebSocket client...");
+                await _webSocketClient.ConnectAsync();
+            }
+            _logger.LogInformation("IoTService initialized successfully.");
         }
 
         private async Task ExecuteCommandAsync(IoTCommand command)

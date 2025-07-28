@@ -6,15 +6,29 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DisplayLogic.Services
 {
-    public class HomeAssistantWebSocketClient
+    public class HomeAssistantWebSocketClient : IHomeAssistantWebSocketClient
     {
         private readonly IWebSocketClient _webSocketClient;
         private readonly string _accessToken;
-        private int _lastCommandId = 0;
         private readonly IUserNotifier _notifier;
         private readonly ILogger<HomeAssistantWebSocketClient> _logger;
 
-        public event Action<List<MqttDevice>>? DeviceRegistryReceivedAndProcessed;
+        private int _lastCommandId = 0;
+        private int _deviceRegistryCommandId;
+        private int _areaRegistryCommandId;
+        private int _updateAreaCommandId;
+
+        public List<MqttDevice> Devices { get; private set; } = [];
+        public List<Area> Areas { get; private set; } = [];
+
+        private TaskCompletionSource<bool>? _authSuccessTcs;
+        private TaskCompletionSource<Exception>? _authFailureTcs;
+        private TaskCompletionSource<bool>? _registryReceivedTcs;
+        private bool _deviceRegistryReceived = false;
+        private bool _areaRegistryReceived = false;
+
+
+        public bool IsConnected { get; private set; } = false;
 
         public HomeAssistantWebSocketClient(
             IWebSocketClient webSocketClient,
@@ -33,21 +47,159 @@ namespace DisplayLogic.Services
             };
         }
 
+        public async Task ConnectAsync()
+        {
+            await _webSocketClient.StartAsync();
 
-        private TaskCompletionSource<bool>? _authSuccessTcs;
-        private TaskCompletionSource<Exception>? _authFailureTcs;
+            using (CancellationTokenSource timeoutCts = new(TimeSpan.FromSeconds(30)))
+            {
+                Task initializationProcedure = WaitForInitializationConditionAsync();
 
-        public Task WaitForAuthCompletionAsync()
+                Task completed = await Task.WhenAny(initializationProcedure, Task.Delay(Timeout.Infinite, timeoutCts.Token));
+                if (completed != initializationProcedure)
+                {
+                    throw new TimeoutException("Initialization timed out");
+                }
+
+                await initializationProcedure;
+                IsConnected = true;
+            }
+        }
+
+        private async Task WaitForInitializationConditionAsync()
         {
             _authSuccessTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             _authFailureTcs = new TaskCompletionSource<Exception>(TaskCreationOptions.RunContinuationsAsynchronously);
-            return Task.WhenAny(_authSuccessTcs.Task, _authFailureTcs.Task).ContinueWith(t =>
+            _registryReceivedTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            await _notifier.NotifyAsync("WebSocket", "Waiting for authentication...");
+            Task authResult = await Task.WhenAny(_authSuccessTcs.Task, _authFailureTcs.Task);
+
+            if (authResult == _authFailureTcs.Task)
             {
-                if (t.Result == _authFailureTcs.Task)
+                throw _authFailureTcs.Task.Result;
+            }
+
+            await _notifier.NotifyAsync("WebSocket", "Authentication successful, waiting for registry data...");
+            _ = await _registryReceivedTcs.Task;
+        }
+
+        public async Task StopAsync()
+        {
+            await _webSocketClient.StopAsync();
+            IsConnected = false;
+        }
+
+        private async Task OnPayloadReceived(string payload)
+        {
+            try
+            {
+                JsonDocument? jsonDocument = JsonDocument.Parse(payload);
+                JsonElement jsonRoot = jsonDocument.RootElement;
+
+                if (jsonRoot.TryGetProperty("type", out JsonElement typeProp))
                 {
-                    throw _authFailureTcs.Task.Result;
+                    string? type = typeProp.GetString();
+
+                    if (type == "auth_required")
+                    {
+                        await SendAuthAsync();
+                    }
+                    else if (type == "auth_ok")
+                    {
+                        _ = _authSuccessTcs?.TrySetResult(true);
+                        await SendDeviceRegistryCommandAsync();
+                        await SendAreaRegistryCommandAsync();
+                    }
+                    else if (type == "auth_invalid")
+                    {
+                        InvalidOperationException ex = new("WebSocket auth failed: Invalid token.");
+                        _ = _authFailureTcs?.TrySetResult(ex);
+                        _logger.LogError(ex, "WebSocket auth failed: Invalid token.");
+                        await _notifier.NotifyAsync("Error", ex.Message);
+                    }
+                    else if (type == "result")
+                    {
+                        if (jsonRoot.TryGetProperty("id", out JsonElement idProp) && jsonRoot.TryGetProperty("result", out JsonElement resultProp))
+                        {
+                            int id = idProp.GetInt32();
+
+                            if (id == _deviceRegistryCommandId)
+                            {
+                                Devices = ParseMqttDevices(resultProp);
+                                _deviceRegistryReceived = true;
+                                TryCompleteRegistryInit();
+                            }
+                            else if (id == _areaRegistryCommandId)
+                            {
+                                Areas = ParseAreas(resultProp);
+                                _areaRegistryReceived = true;
+                                TryCompleteRegistryInit();
+                            }
+                            else if (id == _updateAreaCommandId)
+                            {
+                                string? deviceId = resultProp.TryGetProperty("id", out JsonElement deviceIdProp) ? deviceIdProp.GetString() : null;
+                                string? areaId = resultProp.TryGetProperty("area_id", out JsonElement areaIdProp) ? areaIdProp.GetString() : null;
+                                await _notifier.NotifyAsync("WebSocket", $"Device update result for ID {id}: Device {deviceId} updated to area {areaId}.");
+
+                                MqttDevice? device = Devices.FirstOrDefault(matchedDevice =>
+                                {
+                                    return matchedDevice.id == deviceId;
+                                });
+                                if (device != null)
+                                {
+                                    device.area_id = areaId;
+                                }
+                            }
+                            else
+                            {
+                                await _notifier.NotifyAsync("Error", $"Received result for unknown command ID: {id}");
+                            }
+                        }
+                    }
                 }
-            });
+            }
+            catch (JsonException ex)
+            {
+                await _notifier.NotifyAsync("Error", $"JSON parse error in WebSocket payload: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                await _notifier.NotifyAsync("Error", $"Unexpected error processing WebSocket payload: {ex.Message}");
+            }
+        }
+
+        private Task SendAuthAsync()
+        {
+            object authCommand = new
+            {
+                type = "auth",
+                access_token = _accessToken
+            };
+            string jsonString = JsonSerializer.Serialize(authCommand);
+            _logger.LogInformation("Sending auth command: {Command}", jsonString);
+            return _webSocketClient.SendAsync(jsonString);
+        }
+
+        private void TryCompleteRegistryInit()
+        {
+            if (_deviceRegistryReceived && _areaRegistryReceived)
+            {
+                _ = (_registryReceivedTcs?.TrySetResult(true));
+            }
+        }
+
+        private Task SendDeviceRegistryCommandAsync()
+        {
+            _deviceRegistryCommandId = Interlocked.Increment(ref _lastCommandId);
+            object deviceRegistryCommand = new
+            {
+                id = _deviceRegistryCommandId,
+                type = "config/device_registry/list"
+            };
+            string jsonString = JsonSerializer.Serialize(deviceRegistryCommand);
+            _logger.LogInformation("Sending device registry command: {Command}", jsonString);
+            return _webSocketClient.SendAsync(jsonString);
         }
 
         private static List<MqttDevice> ParseMqttDevices(JsonElement resultProp)
@@ -108,92 +260,66 @@ namespace DisplayLogic.Services
                   via_device_id = device.TryGetProperty("via_device_id", out JsonElement viaDeviceIdProp) && viaDeviceIdProp.ValueKind != JsonValueKind.Null ? viaDeviceIdProp.GetString() : null
               };
           })
-   .ToList() ?? [];
+         .ToList() ?? [];
         }
 
-        public async Task StartAsync()
+        private Task SendAreaRegistryCommandAsync()
         {
-            await _webSocketClient.StartAsync();
-        }
-
-        public async Task StopAsync()
-        {
-            await _webSocketClient.StopAsync();
-        }
-
-        private async Task OnPayloadReceived(string payload)
-        {
-            try
-            {
-                JsonDocument? jsonDocument = JsonDocument.Parse(payload);
-                JsonElement jsonRoot = jsonDocument.RootElement;
-
-                if (jsonRoot.TryGetProperty("type", out JsonElement typeProp))
-                {
-                    string? type = typeProp.GetString();
-
-                    if (type == "auth_required")
-                    {
-                        await SendAuthAsync();
-                    }
-                    else if (type == "auth_ok")
-                    {
-                        _ = _authSuccessTcs?.TrySetResult(true);
-                        await SendDeviceRegistryCommandAsync();
-                    }
-                    else if (type == "auth_invalid")
-                    {
-                        InvalidOperationException ex = new("WebSocket auth failed: Invalid token.");
-                        _ = _authFailureTcs?.TrySetResult(ex);
-                        _logger.LogError(ex, "WebSocket auth failed: Invalid token.");
-                        await _notifier.NotifyAsync("Error", ex.Message);
-                    }
-                    else if (type == "result")
-                    {
-                        if (jsonRoot.TryGetProperty("id", out JsonElement idProp) && idProp.GetInt32() == _lastCommandId)
-                        {
-                            if (jsonRoot.TryGetProperty("result", out JsonElement resultProp))
-                            {
-                                List<MqttDevice> mqttDevices = ParseMqttDevices(resultProp);
-                                DeviceRegistryReceivedAndProcessed?.Invoke(mqttDevices);
-                            }
-                        }
-                    }
-                }
-            }
-            catch (JsonException ex)
-            {
-                await _notifier.NotifyAsync("Error", $"JSON parse error in WebSocket payload: {ex.Message}");
-            }
-            catch (Exception ex)
-            {
-                await _notifier.NotifyAsync("Error", $"Unexpected error processing WebSocket payload: {ex.Message}");
-            }
-        }
-
-        private Task SendAuthAsync()
-        {
-            object authCommand = new
-            {
-                type = "auth",
-                access_token = _accessToken
-            };
-            string jsonString = JsonSerializer.Serialize(authCommand);
-            _logger.LogInformation("Sending auth command: {Command}", jsonString);
-            return _webSocketClient.SendAsync(jsonString);
-        }
-
-        private Task SendDeviceRegistryCommandAsync()
-        {
-            _lastCommandId = Interlocked.Increment(ref _lastCommandId);
+            _areaRegistryCommandId = Interlocked.Increment(ref _lastCommandId);
             object deviceRegistryCommand = new
             {
-                id = _lastCommandId,
-                type = "config/device_registry/list"
+                id = _areaRegistryCommandId,
+                type = "config/area_registry/list"
             };
             string jsonString = JsonSerializer.Serialize(deviceRegistryCommand);
             _logger.LogInformation("Sending device registry command: {Command}", jsonString);
             return _webSocketClient.SendAsync(jsonString);
+        }
+
+        private static List<Area> ParseAreas(JsonElement resultProp)
+        {
+            List<JsonElement>? areaElements = JsonSerializer.Deserialize<List<JsonElement>>(resultProp);
+            if (areaElements == null)
+            {
+                return [];
+            }
+
+            return [.. areaElements.Select(area =>
+            {
+                return new Area
+                {
+                    area_id = area.GetProperty("area_id").GetString() ?? "unknown",
+                    floor_id = area.TryGetProperty("floor_id", out JsonElement floorIdProp) && floorIdProp.ValueKind != JsonValueKind.Null ? floorIdProp.GetString() : null,
+                    icon = area.TryGetProperty("icon", out JsonElement iconProp) && iconProp.ValueKind != JsonValueKind.Null ? iconProp.GetString() : null,
+                    name = area.GetProperty("name").GetString() ?? "Unnamed",
+                };
+            })];
+        }
+
+        public async Task UpdateDeviceAreaAsync(string uniqueId, string areaId)
+        {
+            if (string.IsNullOrWhiteSpace(areaId))
+            {
+                throw new ArgumentException("Area ID cannot be null or empty", nameof(areaId));
+            }
+
+            MqttDevice? device = Devices?.FirstOrDefault(device =>
+            {
+                return device.id == uniqueId;
+            }) ?? throw new InvalidOperationException($"Device with id '{uniqueId}' not found in registry.");
+
+            _updateAreaCommandId = Interlocked.Increment(ref _lastCommandId);
+            object updateCommand = new
+            {
+                id = _updateAreaCommandId,
+                type = "config/device_registry/update",
+                device_id = device.id,
+                area_id = areaId
+            };
+
+            string json = JsonSerializer.Serialize(updateCommand);
+            _logger.LogInformation("Sending device area update: {Command}", json);
+            await _webSocketClient.SendAsync(json);
         }
     }
 
