@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="DisplayApp.Views.DevicesPage"
+             BackgroundColor="#302F3F">
+    <VerticalStackLayout Padding="20" Spacing="10">
+        <Label x:Name="RoomNameLabel"
+               FontSize="22"
+               FontAttributes="Bold"
+               TextColor="#A678E2"
+               HorizontalOptions="Center" />
+
+        <CollectionView x:Name="DevicesCollection"
+                        SelectionMode="None">
+            <CollectionView.ItemsLayout>
+                <GridItemsLayout Orientation="Vertical" Span="2" />
+            </CollectionView.ItemsLayout>
+
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Frame BackgroundColor="#3E3C5C"
+                           CornerRadius="10"
+                           Padding="10"
+                           Margin="5">
+                        <VerticalStackLayout>
+                            <Label Text="{Binding name}" TextColor="White" />
+                            <Label Text="{Binding model}" TextColor="Gray" FontSize="12" />
+                        </VerticalStackLayout>
+                    </Frame>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+    </VerticalStackLayout>
+</ContentPage>
