@@ -65,18 +65,14 @@ namespace DisplayLogic.Tests.Services.WebSocketClientTests
         }
 
         [Fact]
-        public async Task StartAsync_ConnectionFails_NotifiesError()
+        public async Task StartAsync_ConnectionFails_ThrowsException()
         {
             // Arrange
             string InvalidWsUrl = "ws://unknownhost:8123/api/websocket";
-            string expectedMessage = "Connection error: Unable to connect to the remote server";
             WebSocketClient client = new(InvalidWsUrl, _substituteNotifier);
 
-            // Act
-            await client.StartAsync();
-
-            // Assert
-            await _substituteNotifier.Received(1).NotifyAsync("WebSocket Payload", Arg.Is<string>(message => message == expectedMessage));
+            // Act && Assert
+            Exception ex = await Assert.ThrowsAnyAsync<Exception>(client.StartAsync);
         }
 
         [Fact]
