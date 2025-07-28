@@ -31,6 +31,7 @@ namespace DisplayLogic.Services
         {
             MqttClientOptions MqttClientOptions = new MqttClientOptionsBuilder()
                  .WithTcpServer(_mqttBroker)
+                 .WithClientId("test-client")
                  .Build();
 
             MqttClientConnectResult response = await _mqttClient.ConnectAsync(MqttClientOptions, CancellationToken.None);
