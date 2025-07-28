@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using MQTTnet;
+using Serilog;
 
 namespace DisplayLogic.Services
 {
@@ -17,43 +18,89 @@ namespace DisplayLogic.Services
             _mqttClient = mqttClient;
             _mqttClient.ApplicationMessageReceivedAsync += e =>
             {
-                string payload = Encoding.UTF8.GetString(e.ApplicationMessage.Payload);
-                _receivedText = payload;
+                try
+                {
+                    string payload = Encoding.UTF8.GetString(e.ApplicationMessage.Payload);
+                    _receivedText = payload;
+                    Log.Information($"MQTT: Received text: {_receivedText}");
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "MQTT: Error handling incoming message");
+                }
                 return Task.CompletedTask;
             };
         }
 
         public async Task<bool> ConnectAsync()
         {
-            if (!_mqttClient.IsConnected)
+            try
             {
-                _ = await _mqttClient.ConnectAsync(new MqttClientOptionsBuilder()
-                    .WithTcpServer("localhost")
-                    .Build());
+                if (!_mqttClient.IsConnected)
+                {
+                    await _mqttClient.ConnectAsync(new MqttClientOptionsBuilder()
+                        .WithTcpServer("localhost")
+                        .Build());
+                }
+                await _mqttClient.SubscribeAsync(TopicReceive);
+                Log.Information("MQTT: Connected and subscribed to topic");
+                return _mqttClient.IsConnected;
             }
-            _ = await _mqttClient.SubscribeAsync(TopicReceive);
-            return _mqttClient.IsConnected;
+            catch (Exception ex)
+            {
+                Log.Error(ex, "MQTT: Failed to connect or subscribe");
+                return false;
+            }
         }
 
-        public Task SendTextAsync(string text)
+        public async Task SendTextAsync(string text)
         {
-            MqttApplicationMessage message = new MqttApplicationMessageBuilder()
-                .WithTopic(TopicSend)
-                .WithPayload(text)
-                .Build();
-            return _mqttClient.PublishAsync(message);
+            try
+            {
+                MqttApplicationMessage message = new MqttApplicationMessageBuilder()
+                    .WithTopic(TopicSend)
+                    .WithPayload(text)
+                    .Build();
+
+                await _mqttClient.PublishAsync(message);
+                Log.Information("MQTT: Sent text to topic '{Topic}' : {Text}", TopicSend, text);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "MQTT: Failed to send text to topic '{Topic}", TopicSend);
+            }
         }
         public Task<string> ReceiveTextAsync()
         {
-            return Task.FromResult(_receivedText);
+            try
+            {
+                if (_receivedText == null)
+                {
+                    Log.Warning("MQTT: No text received yet");
+                    return Task.FromResult(string.Empty);
+                }
+                return Task.FromResult(_receivedText);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "MQTT: Error retrieving received text");
+                return Task.FromResult(string.Empty);
+            }
         }
 
-        public Task<bool> DisconnectAsync()
+        public async Task<bool> DisconnectAsync()
         {
-            return _mqttClient.DisconnectAsync().ContinueWith(x =>
+            try
             {
+                await _mqttClient.DisconnectAsync();
+                Log.Information("MQTT: Disconnected");
                 return true;
-            });
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "MQTT: Disconnection failed");
+                return false;
+            }
         }
     }
 }
