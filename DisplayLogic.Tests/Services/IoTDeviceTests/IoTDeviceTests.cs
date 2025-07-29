@@ -5,8 +5,8 @@ namespace DisplayLogic.Tests.Services.IoTDeviceTests
     public class IoTDeviceTests : IClassFixture<MqttTestFixture>
     {
         private readonly MqttTestFixture _fixture;
-        private const string _testBroker = "test.mosquitto.org";
-        private const string _testRestEndpoint = "http://localhost/api";
+        private const string TestBroker = "localhost";
+        private const string TestRestEndpoint = "http://localhost/api";
 
         public IoTDeviceTests(MqttTestFixture fixture)
         {
@@ -18,7 +18,7 @@ namespace DisplayLogic.Tests.Services.IoTDeviceTests
         {
             Skip.IfNot(_fixture.IsMqttAvailable, "MQTT broker not available");
 
-            IoTDevice device = new(_testBroker, _testRestEndpoint);
+            IoTDevice device = new(TestBroker, TestRestEndpoint);
             await device.ConnectAsync();
             Assert.True(device.IsConnected);
         }
@@ -31,7 +31,7 @@ namespace DisplayLogic.Tests.Services.IoTDeviceTests
             string topic = "iot/test/message";
             string expectedPayload = "Hello World";
 
-            IoTDevice device = new(_testBroker, _testRestEndpoint);
+            IoTDevice device = new(TestBroker, TestRestEndpoint);
             await device.ConnectAsync();
 
             Task<string> subscribeTask = device.SubscribeAsync(topic);
@@ -47,7 +47,7 @@ namespace DisplayLogic.Tests.Services.IoTDeviceTests
         {
             Skip.IfNot(_fixture.IsMqttAvailable, "MQTT broker not available");
 
-            IoTDevice device = new(_testBroker, _testRestEndpoint);
+            IoTDevice device = new(TestBroker, TestRestEndpoint);
             await device.ConnectAsync();
             await device.DisconnectAsync();
             Assert.False(device.IsConnected);
@@ -56,7 +56,7 @@ namespace DisplayLogic.Tests.Services.IoTDeviceTests
         [SkippableFact]
         public async Task Publish_Should_Throw_If_Not_Connected()
         {
-            IoTDevice device = new(_testBroker, _testRestEndpoint);
+            IoTDevice device = new(TestBroker, TestRestEndpoint);
 
             _ = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             {

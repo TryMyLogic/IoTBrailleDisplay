@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Xunit;
-using System.Net.Sockets;
+﻿using System.Net.Sockets;
 
 namespace DisplayLogic.Tests.Services.IoTDeviceTests
 {
@@ -17,7 +11,7 @@ namespace DisplayLogic.Tests.Services.IoTDeviceTests
             try
             {
                 using TcpClient client = new();
-                client.Connect("test.mosquitto.org", 1883);
+                client.Connect("localhost", 1883);
                 IsMqttAvailable = true;
             }
             catch
