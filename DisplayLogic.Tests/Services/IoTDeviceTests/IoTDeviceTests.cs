@@ -47,7 +47,7 @@ namespace DisplayLogic.Tests.Services.IoTDeviceTests
             Assert.False(device.IsConnected);
         }
 
-        [Fact]
+        [SkippableFact]
         public async Task Publish_Should_Throw_If_Not_Connected()
         {
             IoTDevice device = new(TestBroker, TestRestEndpoint);
