@@ -17,7 +17,7 @@ namespace DisplayLogic.Tests.Services.IoTDeviceTests
             try
             {
                 using TcpClient client = new();
-                client.Connect("localhost", 1883);
+                client.Connect("test.mosquitto.org", 1883);
                 IsMqttAvailable = true;
             }
             catch
