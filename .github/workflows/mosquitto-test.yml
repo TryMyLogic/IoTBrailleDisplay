@@ -10,6 +10,8 @@ jobs:
         image: eclipse-mosquitto:latest
         ports:
           - 1883:1883
+        volumes:
+          - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
         options: >-
           --health-cmd "mosquitto_sub -t 'test' -C 1 || exit 0"
           --health-interval 10s
@@ -21,9 +23,15 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+      - name: Create Mosquitto config
+        run: |
+          cat << EOF > mosquitto.conf
+          listener 1883 0.0.0.0
+          allow_anonymous true
+          EOF
       - name: Wait for Mosquitto
         run: |
-          docker run --rm eclipse-mosquitto mosquitto_sub -h mosquitto -t test -C 1 -W 5 || echo "MQTT connection failed"
+          docker run --rm --network host eclipse-mosquitto mosquitto_sub -h 127.0.0.1 -t test -C 1 -W 5 || echo "MQTT connection failed"
       - name: Debug Containers
         run: |
           docker ps
