@@ -2,21 +2,31 @@
 
 namespace DisplayLogic.Tests.Services.IoTDeviceTests
 {
-    public class IoTDeviceTests : IClassFixture<MqttTestFixture>
+    public class IoTDeviceTests
     {
-        private readonly MqttTestFixture _fixture;
         private const string TestBroker = "localhost";
         private const string TestRestEndpoint = "http://localhost/api";
 
-        public IoTDeviceTests(MqttTestFixture fixture)
+        private static readonly bool s_mqttAvailable = IsMqttBrokerAvailable();
+
+        private static bool IsMqttBrokerAvailable()
         {
-            _fixture = fixture;
+            try
+            {
+                using var client = new System.Net.Sockets.TcpClient();
+                client.Connect(TestBroker, 1883);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         [SkippableFact]
         public async Task Should_Connect_To_Mqtt_Broker()
         {
-            Skip.IfNot(_fixture.IsMqttAvailable, "MQTT broker not available");
+            Skip.IfNot(s_mqttAvailable, "MQTT broker not available");
 
             IoTDevice device = new(TestBroker, TestRestEndpoint);
             await device.ConnectAsync();
@@ -26,7 +36,7 @@ namespace DisplayLogic.Tests.Services.IoTDeviceTests
         [SkippableFact]
         public async Task Should_Publish_And_Receive_Message()
         {
-            Skip.IfNot(_fixture.IsMqttAvailable, "MQTT broker not available");
+            Skip.IfNot(s_mqttAvailable, "MQTT broker not available");
 
             string topic = "iot/test/message";
             string expectedPayload = "Hello World";
@@ -45,7 +55,7 @@ namespace DisplayLogic.Tests.Services.IoTDeviceTests
         [SkippableFact]
         public async Task Should_Disconnect_From_Mqtt()
         {
-            Skip.IfNot(_fixture.IsMqttAvailable, "MQTT broker not available");
+            Skip.IfNot(s_mqttAvailable, "MQTT broker not available");
 
             IoTDevice device = new(TestBroker, TestRestEndpoint);
             await device.ConnectAsync();
