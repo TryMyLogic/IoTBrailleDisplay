@@ -4,8 +4,8 @@ namespace DisplayLogic.Tests.Services.IoTDeviceTests
 {
     public class IoTDeviceTests
     {
-        private static string TestBroker = Environment.GetEnvironmentVariable("MQTT_HOST") ?? "localhost";
-        private static string TestRestEndpoint = Environment.GetEnvironmentVariable("REST_ENDPOINT") ?? "http://localhost/api";
+        private const string TestBroker = "mosquitto";
+        private const string TestRestEndpoint = "http://localhost/api";
 
         [SkippableFact]
         public async Task Should_Connect_To_Mqtt_Broker()

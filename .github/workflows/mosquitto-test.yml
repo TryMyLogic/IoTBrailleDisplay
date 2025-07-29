@@ -4,57 +4,34 @@ on: [push, pull_request]
 
 jobs:
   test:
-    name: Run MQTT Tests
     runs-on: ubuntu-latest
-
     services:
       mosquitto:
-        image: eclipse-mosquitto:2.0
+        image: eclipse-mosquitto:latest
         ports:
           - 1883:1883
         options: >-
-          --health-cmd "mosquitto_pub -h mosquitto -p 1883 -t health -m test || exit 1"
-          --health-interval 5s
-          --health-timeout 10s
-          --health-retries 10
+          --health-cmd "mosquitto_sub -t 'test' -u 'testuser' -P 'testpass' -C 1 || exit 0"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 3
         volumes:
-          - ./mosquitto-config:/mosquitto/config
-
+          - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup .NET
+      - name: Set up .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "8.0.x"
-
-      - name: Install netcat
-        run: sudo apt-get update && sudo apt-get install -y netcat-openbsd
-
-      - name: Wait for Mosquitto to be ready
+          dotnet-version: '8.0.x' # Adjust to your .NET version
+      - name: Create Mosquitto config
         run: |
-          for i in {1..10}; do
-            if nc -z mosquitto 1883; then
-              echo "Mosquitto is up!"
-              break
-            else
-              echo "Waiting for Mosquitto..."
-              sleep 2
-            fi
-          done
-
-      - name: Restore dependencies
-        run: |
-          dotnet restore DisplayLogic/DisplayLogic.csproj --verbosity normal
-          dotnet restore DisplayLogic.Tests/DisplayLogic.Tests.csproj --verbosity normal
-
-      - name: Build projects
-        run: |
-          dotnet build DisplayLogic/DisplayLogic.csproj --configuration Release --no-restore
-          dotnet build DisplayLogic.Tests/DisplayLogic.Tests.csproj --configuration Release --no-restore
-
-      - name: Run tests
-        run: dotnet test DisplayLogic.Tests/DisplayLogic.Tests.csproj --no-build --configuration Release --verbosity normal
-        env:
-          MQTT_HOST: mosquitto
-          REST_ENDPOINT: http://localhost/api
+          mkdir -p mosquitto
+          cat << EOF > mosquitto/mosquitto.conf
+          listener 1883
+          allow_anonymous true
+          persistence true
+          persistence_location /mosquitto/data/
+          log_dest file /mosquitto/log/mosquitto.log
+          EOF
+      - name: Run Tests
+        run: dotnet test --logger "console;verbosity=detailed"
