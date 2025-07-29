@@ -26,6 +26,21 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
+      - name: Install netcat
+        run: sudo apt-get update && sudo apt-get install -y netcat
+
+      - name: Wait for Mosquitto to be ready
+        run: |
+          for i in {1..10}; do
+            if nc -z localhost 1883; then
+              echo "Mosquitto is up!"
+              break
+            else
+              echo "Waiting for Mosquitto..."
+              sleep 2
+            fi
+          done
+
       - name: Restore dependencies
         run: |
           dotnet restore DisplayLogic/DisplayLogic.csproj --verbosity normal
