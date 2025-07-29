@@ -10,18 +10,33 @@ namespace DisplayLogic.Services
         private readonly IMqttClient _mqttClient;
         private readonly MqttClientFactory _mqttFactory;
         private readonly HttpClient _httpClient;
+        private readonly int _mqttPort;
         private readonly string _mqttBroker;
         private readonly string _restEndpoint;
+        private readonly MqttClientOptions _mqttOptions;
 
-        public IoTDevice(string mqttBroker, string restEndpoint)
+        public IoTDevice(string mqttBroker, string restEndpoint, int port = 1883, HttpClient? httpClient = null)
         {
             // Initialize MQTT client and HTTP client
             _mqttFactory = new MqttClientFactory();
             _mqttClient = _mqttFactory.CreateMqttClient();
             _httpClient = new HttpClient();
             _mqttBroker = mqttBroker ?? throw new ArgumentNullException(nameof(mqttBroker));
+            _mqttPort = port;
             _restEndpoint = restEndpoint ?? throw new ArgumentNullException(nameof(restEndpoint));
             IsConnected = true; // Only false when rest is connected
+
+            _mqttOptions = new MqttClientOptionsBuilder()
+           .WithTcpServer(_mqttBroker, _mqttPort)
+           .WithClientId("test-client")
+           .WithCleanSession()
+           .Build();
+
+            _mqttClient.DisconnectedAsync += async err =>
+            {
+                Console.WriteLine($"Disconnected from MQTT broker. Reason: {err.Reason}");
+                await Task.CompletedTask;
+            };
         }
 
         // Public read-only property indicating connection status
@@ -29,12 +44,7 @@ namespace DisplayLogic.Services
 
         public async Task ConnectAsync()
         {
-            MqttClientOptions MqttClientOptions = new MqttClientOptionsBuilder()
-                 .WithTcpServer(_mqttBroker)
-                 .WithClientId("test-client")
-                 .Build();
-
-            MqttClientConnectResult response = await _mqttClient.ConnectAsync(MqttClientOptions, CancellationToken.None);
+            MqttClientConnectResult response = await _mqttClient.ConnectAsync(_mqttOptions, CancellationToken.None);
             // Update internal connection status based on broker's response
             IsConnected = response.ResultCode == MqttClientConnectResultCode.Success;
 
@@ -75,6 +85,24 @@ namespace DisplayLogic.Services
             _ = await _mqttClient.PublishAsync(message, CancellationToken.None);
         }
 
+        public async Task PublishWithFallbackAsync(string topic, string payload)
+        {
+            if (_mqttClient.IsConnected)
+            {
+                await PublishAsync(topic, payload);
+            }
+            else
+            {
+                string restUrl = MapTopicToEndpoint(topic);
+                StringContent content = new(payload, Encoding.UTF8, "application/json");
+                HttpResponseMessage response = await _httpClient.PostAsync(restUrl, content);
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw new Exception($"REST publish failed. Status: {response.StatusCode}");
+                }
+            }
+        }
+
         // Subscribe to an MQTT topic and return the first message received
         public async Task<string> SubscribeAsync(string topic)
         {
@@ -113,6 +141,24 @@ namespace DisplayLogic.Services
 
             _ = await _mqttClient.SubscribeAsync(topic);
             return await tcs.Task;
+        }
+
+        public async Task<string> SubscribeWithFallbackAsync(string topic)
+        {
+            if (_mqttClient.IsConnected)
+            {
+                return await SubscribeAsync(topic);
+            }
+            else
+            {
+                string restUrl = MapTopicToEndpoint(topic);
+                HttpResponseMessage response = await _httpClient.GetAsync(restUrl);
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw new Exception($"REST subscribe failed. Status: {response.StatusCode}");
+                }
+                return await response.Content.ReadAsStringAsync();
+            }
         }
 
         // Utility method to map an MQTT topic to a REST endpoint path
