@@ -11,25 +11,25 @@ jobs:
         ports:
           - 1883:1883
         options: >-
-          --health-cmd "mosquitto_sub -t 'test' -C 1 || exit 0"
+          --health-cmd "mosquitto_sub -h 127.0.0.1 -t 'test' -C 1 || exit 0"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 3
+        volumes:
+          - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
     steps:
       - uses: actions/checkout@v4
+      - name: Verify Mosquitto config exists
+        run: |
+          ls -l mosquitto.conf || echo "mosquitto.conf not found in project root"
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-      - name: Create Mosquitto config
-        run: |
-          cat << EOF > mosquitto.conf
-          listener 1883 0.0.0.0
-          allow_anonymous true
-          EOF
       - name: Wait for Mosquitto
         run: |
-          docker run --rm --network host eclipse-mosquitto mosquitto_sub -h 127.0.0.1 -t test -C 1 -W 5 || echo "MQTT connection failed"
+          sleep 5
+          docker run --rm eclipse-mosquitto mosquitto_sub -h mosquitto -t test -C 1 -W 5 || echo "MQTT connection failed"
       - name: Debug Containers
         run: |
           docker ps
