@@ -12,8 +12,9 @@ jobs:
         image: eclipse-mosquitto:2.0
         ports:
           - 1883:1883
+        volumes:
+          - ./github/mosquitto:/mosquitto/config
         options: >-
-          --mount type=bind,source=${{ github.workspace }}/.github/mosquitto/mosquitto.conf,target=/mosquitto/config/mosquitto.conf
           --health-cmd "mosquitto_pub -h localhost -p 1883 -t health -m test || exit 1"
           --health-interval 5s
           --health-timeout 10s
