@@ -2,68 +2,55 @@
 
 namespace DisplayLogic.Tests.Services.IoTDeviceTests
 {
-    public class IoTDeviceTests
+    public class IoTDeviceTests : IClassFixture<MqttTestFixture>
     {
-        private readonly string _testBroker = Environment.GetEnvironmentVariable("MQTT_BROKER") ?? "localhost";
-        private readonly string _testRestEndpoint = Environment.GetEnvironmentVariable("REST_ENDPOINT") ?? "http://localhost/api";
+        private readonly MqttTestFixture _fixture;
+        private const string _testBroker = "localhost";
+        private const string _testRestEndpoint = "http://localhost/api";
+
+        public IoTDeviceTests(MqttTestFixture fixture)
+        {
+            _fixture = fixture;
+        }
 
         [SkippableFact]
         public async Task Should_Connect_To_Mqtt_Broker()
         {
-            try
-            {
-                IoTDevice device = new(_testBroker, _testRestEndpoint);
-                await device.ConnectAsync();
-                Assert.True(device.IsConnected);
-            }
-            catch (Exception ex) when (ex.Message.Contains("Could not connect to MQTT broker"))
-            {
-                throw new SkipException($"MQTT broker is not available: {ex.Message}");
-            }
+            Skip.IfNot(_fixture.IsMqttAvailable, "MQTT broker not available");
+
+            IoTDevice device = new(_testBroker, _testRestEndpoint);
+            await device.ConnectAsync();
+            Assert.True(device.IsConnected);
         }
 
         [SkippableFact]
         public async Task Should_Publish_And_Receive_Message()
         {
-            try
-            {
-                string topic = "iot/test/message";
-                string expectedPayload = "Hello World";
+            Skip.IfNot(_fixture.IsMqttAvailable, "MQTT broker not available");
 
-                IoTDevice device = new(_testBroker, _testRestEndpoint);
-                await device.ConnectAsync();
+            string topic = "iot/test/message";
+            string expectedPayload = "Hello World";
 
-                // Start subscription first
-                Task<string> subscribeTask = device.SubscribeAsync(topic);
+            IoTDevice device = new(_testBroker, _testRestEndpoint);
+            await device.ConnectAsync();
 
-                // Publish after a delay
-                await Task.Delay(2000); // Increased for CI reliability
-                await device.PublishAsync(topic, expectedPayload);
+            Task<string> subscribeTask = device.SubscribeAsync(topic);
+            await Task.Delay(2000);
+            await device.PublishAsync(topic, expectedPayload);
 
-                // Wait with timeout
-                string received = await subscribeTask.WaitAsync(TimeSpan.FromSeconds(10));
-                Assert.Equal(expectedPayload, received);
-            }
-            catch (Exception ex) when (ex.Message.Contains("Could not connect to MQTT broker"))
-            {
-                throw new SkipException($"MQTT broker is not available: {ex.Message}");
-            }
+            string received = await subscribeTask.WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.Equal(expectedPayload, received);
         }
 
         [SkippableFact]
         public async Task Should_Disconnect_From_Mqtt()
         {
-            try
-            {
-                IoTDevice device = new(_testBroker, _testRestEndpoint);
-                await device.ConnectAsync();
-                await device.DisconnectAsync();
-                Assert.False(device.IsConnected);
-            }
-            catch (Exception ex) when (ex.Message.Contains("Could not connect to MQTT broker"))
-            {
-                throw new SkipException($"MQTT broker is not available: {ex.Message}");
-            }
+            Skip.IfNot(_fixture.IsMqttAvailable, "MQTT broker not available");
+
+            IoTDevice device = new(_testBroker, _testRestEndpoint);
+            await device.ConnectAsync();
+            await device.DisconnectAsync();
+            Assert.False(device.IsConnected);
         }
 
         [SkippableFact]
