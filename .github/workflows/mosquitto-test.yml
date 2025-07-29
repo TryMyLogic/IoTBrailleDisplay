@@ -27,7 +27,7 @@ jobs:
           dotnet-version: "8.0.x"
 
       - name: Install netcat
-        run: sudo apt-get update && sudo apt-get install -y netcat
+        run: sudo apt-get update && sudo apt-get install -y netcat-openbsd
 
       - name: Wait for Mosquitto to be ready
         run: |
