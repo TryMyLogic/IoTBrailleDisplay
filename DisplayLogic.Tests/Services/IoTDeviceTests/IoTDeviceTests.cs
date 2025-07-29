@@ -5,7 +5,7 @@ namespace DisplayLogic.Tests.Services.IoTDeviceTests
     public class IoTDeviceTests : IClassFixture<MqttTestFixture>
     {
         private readonly MqttTestFixture _fixture;
-        private const string _testBroker = "localhost";
+        private const string _testBroker = "test.mosquitto.org";
         private const string _testRestEndpoint = "http://localhost/api";
 
         public IoTDeviceTests(MqttTestFixture fixture)
