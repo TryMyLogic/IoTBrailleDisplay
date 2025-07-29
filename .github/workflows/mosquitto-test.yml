@@ -53,3 +53,6 @@ jobs:
 
       - name: Run tests
         run: dotnet test DisplayLogic.Tests/DisplayLogic.Tests.csproj --no-build --configuration Release --verbosity normal
+        env:
+          MQTT_HOST: mosquitto
+          REST_ENDPOINT: http://localhost/api
