@@ -18,7 +18,7 @@ jobs:
           --health-timeout 10s
           --health-retries 10
         volumes:
-          - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+          - ./mosquitto-config:/mosquitto/config
 
     steps:
       - uses: actions/checkout@v4
