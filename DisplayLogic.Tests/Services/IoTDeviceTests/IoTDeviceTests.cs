@@ -15,18 +15,18 @@ namespace DisplayLogic.Tests.Services.IoTDeviceTests
             {
                 using var client = new System.Net.Sockets.TcpClient();
                 client.Connect(TestBroker, 1883);
-                return true;
+                return false;
             }
             catch
             {
-                return false;
+                return true;
             }
         }
 
         [SkippableFact]
         public async Task Should_Connect_To_Mqtt_Broker()
         {
-            Skip.IfNot(s_mqttAvailable, "MQTT broker not available");
+            Skip.If(s_mqttAvailable, "MQTT broker not available");
 
             IoTDevice device = new(TestBroker, TestRestEndpoint);
             await device.ConnectAsync();
@@ -36,7 +36,7 @@ namespace DisplayLogic.Tests.Services.IoTDeviceTests
         [SkippableFact]
         public async Task Should_Publish_And_Receive_Message()
         {
-            Skip.IfNot(s_mqttAvailable, "MQTT broker not available");
+            Skip.If(s_mqttAvailable, "MQTT broker not available");
 
             string topic = "iot/test/message";
             string expectedPayload = "Hello World";
@@ -55,7 +55,8 @@ namespace DisplayLogic.Tests.Services.IoTDeviceTests
         [SkippableFact]
         public async Task Should_Disconnect_From_Mqtt()
         {
-            Skip.IfNot(s_mqttAvailable, "MQTT broker not available");
+            Skip.If
+                (s_mqttAvailable, "MQTT broker not available");
 
             IoTDevice device = new(TestBroker, TestRestEndpoint);
             await device.ConnectAsync();
