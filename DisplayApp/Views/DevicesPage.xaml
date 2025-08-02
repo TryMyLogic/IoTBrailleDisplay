@@ -11,7 +11,8 @@
                HorizontalOptions="Center" />
 
         <CollectionView x:Name="DevicesCollection"
-                        SelectionMode="None">
+                SelectionMode="Single"
+                SelectionChanged="OnDeviceSelected">
             <CollectionView.ItemsLayout>
                 <GridItemsLayout Orientation="Vertical" Span="2" />
             </CollectionView.ItemsLayout>

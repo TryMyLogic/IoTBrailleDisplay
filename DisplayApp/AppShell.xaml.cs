@@ -9,6 +9,7 @@ namespace DisplayApp
             InitializeComponent();
 
             Routing.RegisterRoute(nameof(DevicesPage), typeof(DevicesPage));
+            Routing.RegisterRoute(nameof(DeviceControlPage), typeof(DeviceControlPage));
         }
     }
 }
