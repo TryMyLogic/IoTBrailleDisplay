@@ -1,6 +1,6 @@
 ﻿using System.Text;
 using DisplayLogic.Services;
-using Serilog;
+using Microsoft.Extensions.Logging;
 using Windows.Devices.Bluetooth;
 using Windows.Devices.Bluetooth.Rfcomm;
 using Windows.Devices.Enumeration;
@@ -18,6 +18,7 @@ namespace DisplayApp.Platforms.Windows
         private static readonly Guid PiUuid = Guid.Parse("00001101-0000-1000-8000-00805F9B34FB");
 
         private bool _isConnected = false;
+        private readonly ILogger<BluetoothConnectionStrategyWindows>? _logger = null;
         public bool IsConnected => _isConnected && _device != null && _socket != null && _writer != null && _reader != null;
         public async Task<bool> ConnectAsync()
         {
@@ -29,14 +30,14 @@ namespace DisplayApp.Platforms.Windows
 
                 if (targetDevice == null)
                 {
-                    Log.Warning("No Bluetooth devices found");
+                    _logger?.LogWarning("No Bluetooth devices found");
                     return false;
                 }
 
                 _device = await BluetoothDevice.FromIdAsync(targetDevice.Id);
                 if (_device == null)
                 {
-                    Log.Warning("BluetoothDevice.FromIdAsync returned null");
+                    _logger?.LogWarning("BluetoothDevice.FromIdAsync returned null");
                     return false;
                 }
 
@@ -44,7 +45,7 @@ namespace DisplayApp.Platforms.Windows
                 RfcommDeviceService? service = rfcommDeviceServices.Services.FirstOrDefault(s => s.ServiceId.Uuid == PiUuid);
                 if (service == null)
                 {
-                    Log.Warning("No matching Rfcomm service found.");
+                    _logger?.LogWarning("No matching Rfcomm service found.");
                     return false;
                 }
 
@@ -58,13 +59,13 @@ namespace DisplayApp.Platforms.Windows
                 };
 
                 _isConnected = true;
-                Log.Information("Bluetooth connection established succesfully.");
+                _logger?.LogInformation("Bluetooth connection established succesfully.");
                 return true;
             }
             catch (Exception ex)
             {
                 _isConnected = false;
-                Log.Error($"Windows Bluetooth failed: {ex.Message}");
+                _logger?.LogError($"Windows Bluetooth failed: {ex.Message}");
                 return false;
             }
         }
@@ -78,11 +79,11 @@ namespace DisplayApp.Platforms.Windows
                 _writer.WriteBytes(data);
                 await _writer.StoreAsync();
                 await _writer.FlushAsync();
-                Log.Information($"Sending text via Bluetooth: {text}");
+                _logger?.LogInformation($"Sending text via Bluetooth: {text}");
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Error sending text via Bluetooth");
+                _logger?.LogError(ex, "Error sending text via Bluetooth");
                 throw;
             }
         }
@@ -97,12 +98,12 @@ namespace DisplayApp.Platforms.Windows
                 byte[] buffer = new byte[bytesRead];
                 _reader.ReadBytes(buffer);
                 string received = Encoding.UTF8.GetString(buffer);
-                Log.Information($"Received text via Bluetooth: {received}");
+                _logger?.LogInformation($"Received text via Bluetooth: {received}");
                 return received;
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Error receiving text over Bluetooth.");
+                _logger?.LogError(ex, "Error receiving text over Bluetooth.");
                 throw;
 
             }
@@ -124,12 +125,12 @@ namespace DisplayApp.Platforms.Windows
                 _socket = null;
                 _device = null;
 
-                Log.Information("Disconnecting Bluetooth device.");
+                _logger?.LogInformation("Disconnecting Bluetooth device.");
                 return Task.FromResult(true);
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Error during Bluetooth disconnect.");
+                _logger?.LogError(ex, "Error during Bluetooth disconnect.");
                 return Task.FromResult(false);
             }
 

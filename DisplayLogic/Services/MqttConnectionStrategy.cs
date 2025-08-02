@@ -1,6 +1,7 @@
 ﻿using System.Text;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using MQTTnet;
-using Serilog;
 
 namespace DisplayLogic.Services
 {
@@ -8,25 +9,27 @@ namespace DisplayLogic.Services
     {
         private readonly IMqttClient _mqttClient;
         private string _receivedText = string.Empty;
+        private readonly ILogger<MqttConnectionStrategy> _logger;
         private const string TopicSend = "braille/send";
         private const string TopicReceive = "braille/receive";
 
         public bool IsConnected => _mqttClient.IsConnected;
 
-        public MqttConnectionStrategy(IMqttClient mqttClient)
+        public MqttConnectionStrategy(IMqttClient mqttClient, ILogger<MqttConnectionStrategy> logger)
         {
             _mqttClient = mqttClient;
+            _logger = logger ?? NullLogger<MqttConnectionStrategy>.Instance;
             _mqttClient.ApplicationMessageReceivedAsync += e =>
             {
                 try
                 {
                     string payload = Encoding.UTF8.GetString(e.ApplicationMessage.Payload);
                     _receivedText = payload;
-                    Log.Information($"MQTT: Received text: {_receivedText}");
+                    _logger.LogInformation($"MQTT: Received text: {_receivedText}");
                 }
                 catch (Exception ex)
                 {
-                    Log.Error(ex, "MQTT: Error handling incoming message");
+                    _logger.LogError(ex, "MQTT: Error handling incoming message");
                 }
                 return Task.CompletedTask;
             };
@@ -43,12 +46,12 @@ namespace DisplayLogic.Services
                         .Build());
                 }
                 await _mqttClient.SubscribeAsync(TopicReceive);
-                Log.Information("MQTT: Connected and subscribed to topic");
+                _logger.LogInformation("MQTT: Connected and subscribed to topic");
                 return _mqttClient.IsConnected;
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "MQTT: Failed to connect or subscribe");
+                _logger.LogError(ex, "MQTT: Failed to connect or subscribe");
                 return false;
             }
         }
@@ -63,11 +66,11 @@ namespace DisplayLogic.Services
                     .Build();
 
                 await _mqttClient.PublishAsync(message);
-                Log.Information("MQTT: Sent text to topic '{Topic}' : {Text}", TopicSend, text);
+                _logger.LogInformation("MQTT: Sent text to topic '{Topic}' : {Text}", TopicSend, text);
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "MQTT: Failed to send text to topic '{Topic}", TopicSend);
+                _logger.LogError(ex, "MQTT: Failed to send text to topic '{Topic}", TopicSend);
             }
         }
         public Task<string> ReceiveTextAsync()
@@ -76,14 +79,14 @@ namespace DisplayLogic.Services
             {
                 if (_receivedText == null)
                 {
-                    Log.Warning("MQTT: No text received yet");
+                    _logger.LogWarning("MQTT: No text received yet");
                     return Task.FromResult(string.Empty);
                 }
                 return Task.FromResult(_receivedText);
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "MQTT: Error retrieving received text");
+                _logger.LogError(ex, "MQTT: Error retrieving received text");
                 return Task.FromResult(string.Empty);
             }
         }
@@ -93,12 +96,12 @@ namespace DisplayLogic.Services
             try
             {
                 await _mqttClient.DisconnectAsync();
-                Log.Information("MQTT: Disconnected");
+                _logger.LogInformation("MQTT: Disconnected");
                 return true;
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "MQTT: Disconnection failed");
+                _logger.LogError(ex, "MQTT: Disconnection failed");
                 return false;
             }
         }
