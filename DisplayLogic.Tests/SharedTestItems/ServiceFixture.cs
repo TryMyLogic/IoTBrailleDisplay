@@ -15,7 +15,7 @@ namespace DisplayLogic.Tests.SharedTestItems
         public async Task InitializeAsync()
         {
             CanConnectToHomeAssistant = await TestConnectionToHomeAssistant();
-            // CanConnectToMQTTBroker = await TestConnectionToMQTTBroker();
+            CanConnectToMQTTBroker = await TestConnectionToMQTTBroker();
         }
 
         public Task DisposeAsync()
