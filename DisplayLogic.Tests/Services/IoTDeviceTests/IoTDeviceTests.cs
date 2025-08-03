@@ -1,4 +1,4 @@
-﻿//using DisplayLogic.Services;
+﻿using DisplayLogic.Services;
 
 namespace DisplayLogic.Tests.Services.IoTDeviceTests
 {
@@ -12,10 +12,10 @@ namespace DisplayLogic.Tests.Services.IoTDeviceTests
         {
             IoTDevice device = new(TestBroker, TestRestEndpoint);
 
-//            _ = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-//            {
-//                return device.PublishAsync("iot/test", "payload");
-//            });
-//        }
-//    }
-//}
+            _ = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            {
+                return device.PublishAsync("iot/test", "payload");
+            });
+        }
+    }
+}

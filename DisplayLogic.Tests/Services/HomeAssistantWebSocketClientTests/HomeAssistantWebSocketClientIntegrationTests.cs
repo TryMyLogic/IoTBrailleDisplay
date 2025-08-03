@@ -1,5 +1,4 @@
-﻿using DisplayLogic.Models;
-using DisplayLogic.Services;
+﻿using DisplayLogic.Services;
 using DisplayLogic.SharedInterfaces;
 using DisplayLogic.Tests.SharedTestItems;
 using Microsoft.Extensions.Logging;
