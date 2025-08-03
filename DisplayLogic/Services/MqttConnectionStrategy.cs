@@ -38,11 +38,11 @@ namespace DisplayLogic.Services
             {
                 if (!_mqttClient.IsConnected)
                 {
-                    await _mqttClient.ConnectAsync(new MqttClientOptionsBuilder()
+                    _ = await _mqttClient.ConnectAsync(new MqttClientOptionsBuilder()
                         .WithTcpServer("localhost")
                         .Build());
                 }
-                await _mqttClient.SubscribeAsync(TopicReceive);
+                _ = await _mqttClient.SubscribeAsync(TopicReceive);
                 Log.Information("MQTT: Connected and subscribed to topic");
                 return _mqttClient.IsConnected;
             }
@@ -62,7 +62,7 @@ namespace DisplayLogic.Services
                     .WithPayload(text)
                     .Build();
 
-                await _mqttClient.PublishAsync(message);
+                _ = await _mqttClient.PublishAsync(message);
                 Log.Information("MQTT: Sent text to topic '{Topic}' : {Text}", TopicSend, text);
             }
             catch (Exception ex)
