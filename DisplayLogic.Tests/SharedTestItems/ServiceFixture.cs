@@ -1,4 +1,5 @@
 ﻿using DisplayLogic.Services;
+using DisplayLogic.SharedInterfaces;
 
 namespace DisplayLogic.Tests.SharedTestItems
 {
@@ -14,7 +15,7 @@ namespace DisplayLogic.Tests.SharedTestItems
         public async Task InitializeAsync()
         {
             CanConnectToHomeAssistant = await TestConnectionToHomeAssistant();
-            // CanConnectToMQTTBroker = await TestConnectionToMQTTBroker();
+            CanConnectToMQTTBroker = await TestConnectionToMQTTBroker();
         }
 
         public Task DisposeAsync()
@@ -24,35 +25,26 @@ namespace DisplayLogic.Tests.SharedTestItems
 
         private static async Task<bool> TestConnectionToHomeAssistant()
         {
-            //try
-            //{
-            //    IUserNotifier notifier = NSubstitute.Substitute.For<IUserNotifier>();
-            //    WebSocketClient webSocketClient = new(WsURL, notifier);
+            try
+            {
+                IUserNotifier notifier = NSubstitute.Substitute.For<IUserNotifier>();
+                WebSocketClient webSocketClient = new(WsURL, notifier);
+                HomeAssistantWebSocketClient client = new(webSocketClient, notifier, HomeAssistantAccessToken);
 
-            //    HomeAssistantWebSocketClient client = new(webSocketClient, notifier, HomeAssistantAccessToken);
+                Task connectTask = client.ConnectAsync();
+                Task completed = await Task.WhenAny(connectTask, Task.Delay(30000));
+                if (completed == connectTask)
+                {
+                    await connectTask;
+                }
+                await client.StopAsync();
 
-            //    TaskCompletionSource<bool> tcs = new();
-
-            //    client.DeviceRegistryReceivedAndProcessed += x =>
-            //    {
-            //        _ = tcs.TrySetResult(true);
-            //    };
-
-            //    // StartAsync loops until it recieves a message. As such, it can cause hanging and needs to be dealt with accordingly
-            //    Task startTask = client.StartAsync();
-
-            //    // Wait for device registry OR timeout after 5s
-            //    Task completed = await Task.WhenAny(tcs.Task, Task.Delay(5000));
-
-            //    await client.StopAsync();
-
-            //    return completed == tcs.Task && tcs.Task.Result;
-            //}
-            //catch
-            //{
-            //    return false;
-            //}
-            return false;
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private static async Task<bool> TestConnectionToMQTTBroker()
