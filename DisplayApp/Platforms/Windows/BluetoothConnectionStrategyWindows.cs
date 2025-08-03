@@ -79,8 +79,8 @@ namespace DisplayApp.Platforms.Windows
                     throw new InvalidOperationException("Bluetooth writer not initialized");
                 byte[] data = Encoding.UTF8.GetBytes(text);
                 _writer.WriteBytes(data);
-                await _writer.StoreAsync();
-                await _writer.FlushAsync();
+                _ = await _writer.StoreAsync();
+                _ = await _writer.FlushAsync();
                 Log.Information($"Sending text via Bluetooth: {text}");
             }
             catch (Exception ex)
