@@ -6,32 +6,32 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DisplayLogic.Services
 {
-    public class WebSocketClient : IWebSocketClient
+    public class WebSocketClient(
+        string wsUrl,
+        IUserNotifier notifier,
+        ILogger<WebSocketClient>? logger = null) : IWebSocketClient
     {
-        private readonly ClientWebSocket _socket;
-        private readonly string _wsUrl;
-        private readonly ILogger<WebSocketClient>? _logger;
-        private readonly IUserNotifier _notifier;
+        private readonly ClientWebSocket _socket = new();
+        private readonly string _wsUrl = wsUrl ?? throw new ArgumentNullException(nameof(wsUrl));
+        private readonly ILogger<WebSocketClient>? _logger = logger ?? NullLogger<WebSocketClient>.Instance;
+        private readonly IUserNotifier _notifier = notifier ?? throw new ArgumentNullException(nameof(notifier));
+        private Task? _messageListenerTask;
+        private readonly CancellationTokenSource _messageListenerCts = new();
 
         public event Action<string>? PayloadReceived;
-
-        public WebSocketClient(
-            string wsUrl,
-            IUserNotifier notifier,
-            ILogger<WebSocketClient>? logger = null)
-        {
-            _wsUrl = wsUrl ?? throw new ArgumentNullException(nameof(wsUrl));
-            _notifier = notifier ?? throw new ArgumentNullException(nameof(notifier));
-            _socket = new ClientWebSocket();
-            _logger = logger ?? NullLogger<WebSocketClient>.Instance;
-        }
 
         public async Task StartAsync()
         {
             try
             {
                 await _socket.ConnectAsync(new Uri(_wsUrl), CancellationToken.None);
-                await ReceiveMessagesAsync();
+                await _notifier.NotifyAsync("WebSocket", "WebSocket connected.");
+
+                // Start ReceiveMessagesAsync as a background task to not block the main thread
+                _messageListenerTask = Task.Run(() =>
+                {
+                    return ReceiveMessagesAsync(_messageListenerCts.Token);
+                }, _messageListenerCts.Token);
             }
             catch
             {
@@ -41,33 +41,57 @@ namespace DisplayLogic.Services
 
         public async Task StopAsync()
         {
-            if (_socket.State == WebSocketState.Open)
+            try
             {
-                await _socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client closing", CancellationToken.None);
+                _messageListenerCts.Cancel();
+                if (_socket.State == WebSocketState.Open)
+                {
+                    await _socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client closing", CancellationToken.None);
+                }
+                if (_messageListenerTask != null)
+                {
+                    await _messageListenerTask;
+                }
+                await _notifier.NotifyAsync("WebSocket", "WebSocket stopped.");
             }
-            _socket.Dispose();
+            catch (Exception ex)
+            {
+                await _notifier.NotifyAsync("WebSocket", $"Error stopping WebSocket: {ex.Message}");
+            }
+            finally
+            {
+                _socket.Dispose();
+                _messageListenerCts.Dispose();
+            }
         }
 
-        private async Task ReceiveMessagesAsync()
+        private async Task ReceiveMessagesAsync(CancellationToken cancellationToken)
         {
             byte[] buffer = new byte[4096];
-            MemoryStream ms = new();
+            MemoryStream messageStream = new();
 
-            while (_socket.State == WebSocketState.Open)
+            try
             {
-                ms.SetLength(0);
-                WebSocketReceiveResult result;
-                do
+                while (_socket.State == WebSocketState.Open && !cancellationToken.IsCancellationRequested)
                 {
-                    result = await _socket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-                    ms.Write(buffer, 0, result.Count);
-                } while (!result.EndOfMessage);
+                    messageStream.SetLength(0);
+                    WebSocketReceiveResult result;
+                    do
+                    {
+                        result = await _socket.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken);
+                        messageStream.Write(buffer, 0, result.Count);
+                    } while (!result.EndOfMessage);
 
-                if (result.MessageType == WebSocketMessageType.Text)
-                {
-                    string payload = Encoding.UTF8.GetString(ms.ToArray());
-                    await HandleMessageAsync(payload);
+                    if (result.MessageType == WebSocketMessageType.Text)
+                    {
+                        string payload = Encoding.UTF8.GetString(messageStream.ToArray());
+                        await HandleMessageAsync(payload);
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                await _notifier.NotifyAsync("WebSocket", $"Error in receive loop: {ex.Message}");
             }
         }
 

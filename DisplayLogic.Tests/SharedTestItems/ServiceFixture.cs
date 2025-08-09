@@ -29,25 +29,17 @@ namespace DisplayLogic.Tests.SharedTestItems
             {
                 IUserNotifier notifier = NSubstitute.Substitute.For<IUserNotifier>();
                 WebSocketClient webSocketClient = new(WsURL, notifier);
-
                 HomeAssistantWebSocketClient client = new(webSocketClient, notifier, HomeAssistantAccessToken);
 
-                TaskCompletionSource<bool> tcs = new();
-
-                client.DeviceRegistryReceivedAndProcessed += x =>
+                Task connectTask = client.ConnectAsync();
+                Task completed = await Task.WhenAny(connectTask, Task.Delay(30000));
+                if (completed == connectTask)
                 {
-                    _ = tcs.TrySetResult(true);
-                };
-
-                // StartAsync loops until it recieves a message. As such, it can cause hanging and needs to be dealt with accordingly
-                Task startTask = client.StartAsync();
-
-                // Wait for device registry OR timeout after 5s
-                Task completed = await Task.WhenAny(tcs.Task, Task.Delay(5000));
-
+                    await connectTask;
+                }
                 await client.StopAsync();
 
-                return completed == tcs.Task && tcs.Task.Result;
+                return true;
             }
             catch
             {

@@ -1,5 +1,4 @@
-﻿using DisplayLogic.Models;
-using DisplayLogic.Services;
+﻿using DisplayLogic.Services;
 using DisplayLogic.SharedInterfaces;
 using DisplayLogic.Tests.SharedTestItems;
 using Microsoft.Extensions.Logging;
@@ -51,99 +50,106 @@ namespace DisplayLogic.Tests.Services.HomeAssistantWebSocketClientTests
         }
 
         [SkippableFact]
-        public async Task StartAsync_WithValidConnection_TriggersAuthAndDeviceRegistry()
+        public async Task ConnectAsync_WithValidConnection_CompletesInitialization()
         {
-            // You can directly use Skip.If, however since this task is async - it was wrapped in an if statement to wait for completion
-            if (_shouldSkipHATests)
-            {
-                Skip.If(true, "Home Assistant is not available. Skipping this test");
-            }
+            // Removed skip wrapping. Does not seem to be required
+            Skip.If(_shouldSkipHATests, "Home Assistant is not available. Skipping this test");
 
             // Arrange
             InitializeMemorySinkLogger();
             _webSocketClient = new(_wsUrl, _userNotifier);
             _homeAssistantWebSocketClient = new(_webSocketClient, _userNotifier, _accessToken, _memoryLogger);
 
-            bool deviceRegistryReceived = false;
-            List<MqttDevice>? receivedDeviceRegistry = null;
-            _homeAssistantWebSocketClient.DeviceRegistryReceivedAndProcessed += (mqttDevices) =>
-            {
-                deviceRegistryReceived = true;
-                receivedDeviceRegistry = mqttDevices;
-            };
-
             // Act
-            Task startTask = _homeAssistantWebSocketClient.StartAsync();
-
             try
             {
-                // Wait for auth success or fail fast on invalid token
-                await _homeAssistantWebSocketClient.WaitForAuthCompletionAsync();
+                Task connectTask = _homeAssistantWebSocketClient.ConnectAsync();
+                Task completed = await Task.WhenAny(connectTask, Task.Delay(45000)); // Extended timeout for diagnostics compared to normal timeout
+
+                if (completed != connectTask)
+                {
+                    Assert.Fail("Test timed out waiting for ConnectAsync to complete after 45 seconds.");
+                }
+
+                await connectTask; // Propagate any exceptions
             }
             catch (Exception ex)
             {
+                Assert.Fail($"Error caught while connecting to the broker: {ex.Message}");
+            }
+
+            // Assert
+            _testLogger.LogInformation("IsConnected: {IsConnected}, Devices Count: {DevicesCount}, Areas Count: {AreasCount}", _homeAssistantWebSocketClient.IsConnected, _homeAssistantWebSocketClient.Devices?.Count ?? 0, _homeAssistantWebSocketClient.Areas?.Count ?? 0);
+
+            SharedFunctions.AssertLogEventContainsMessage(_memorySink, LogEventLevel.Information, "Sending auth command", expectedMatchCount: 1);
+            SharedFunctions.AssertLogEventContainsMessage(_memorySink, LogEventLevel.Information, "Sending device registry command", expectedMatchCount: 1);
+            SharedFunctions.AssertLogEventContainsMessage(_memorySink, LogEventLevel.Information, "Sending area registry command", expectedMatchCount: 1);
+            SharedFunctions.AssertLogEventContainsMessage(_memorySink, LogEventLevel.Information, "Authentication successful, waiting for registry data", expectedMatchCount: 1);
+
+            Assert.True(_homeAssistantWebSocketClient.IsConnected, "Client did not connect successfully.");
+            Assert.NotNull(_homeAssistantWebSocketClient.Devices);
+            Assert.NotEmpty(_homeAssistantWebSocketClient.Devices);
+            Assert.NotNull(_homeAssistantWebSocketClient.Areas);
+            Assert.NotEmpty(_homeAssistantWebSocketClient.Areas);
+
+            // Cleanup
+            try
+            {
                 await _homeAssistantWebSocketClient.StopAsync();
-                Assert.Fail($"{ex.Message}");
             }
-
-            Task waitTask = Task.Run(async () =>
+            catch (Exception ex)
             {
-                while (!deviceRegistryReceived)
-                {
-                    await Task.Delay(50);
-                }
-            });
-
-            Task completed = await Task.WhenAny(waitTask, Task.Delay(30000));
-            await _homeAssistantWebSocketClient.StopAsync();
-
-            if (completed != waitTask)
-            {
-                Assert.Fail("Timed out waiting for DeviceRegistryReceived event.");
+                Assert.Fail($"Error stopping WebSocket client during test cleanup: {ex.Message}");
             }
-
-            // Assert logs
-            SharedFunctions.AssertLogEventContainsMessage(_memorySink, LogEventLevel.Information, "Sending auth command", debugLogger: _testLogger, expectedMatchCount: 1);
-            SharedFunctions.AssertLogEventContainsMessage(_memorySink, LogEventLevel.Information, "Sending device registry command", debugLogger: _testLogger, expectedMatchCount: 1);
-
-            Assert.True(deviceRegistryReceived, "DeviceRegistryReceivedAndProcessed event was not triggered.");
-            Assert.NotNull(receivedDeviceRegistry);
-            Assert.NotEmpty(receivedDeviceRegistry);
 
             _memoryLoggerFactory?.Dispose();
         }
 
         [SkippableFact]
-        public async Task StartAsync_WithInvalidToken_TriggersAuthFailure()
+        public async Task ConnectAsync_WithInvalidToken_TriggersAuthFailure()
         {
-            _testLogger.LogInformation("Should skip: {ShouldSkip}", _shouldSkipHATests);
             Skip.If(_shouldSkipHATests, "Home Assistant is not available. Skipping this test");
 
             // Arrange
             InitializeMemorySinkLogger();
-
-            _webSocketClient = new WebSocketClient(_wsUrl, _userNotifier, null);
-            _homeAssistantWebSocketClient = new HomeAssistantWebSocketClient(_webSocketClient, _userNotifier, "invalid_token", _memoryLogger);
+            _webSocketClient = new(_wsUrl, _userNotifier);
+            _homeAssistantWebSocketClient = new(_webSocketClient, _userNotifier, "invalid_token", _memoryLogger);
 
             // Act
-            Task startTask = _homeAssistantWebSocketClient.StartAsync();
             Exception? caughtException = null;
             try
             {
-                await _homeAssistantWebSocketClient.WaitForAuthCompletionAsync();
+                Task connectTask = _homeAssistantWebSocketClient.ConnectAsync();
+                Task completed = await Task.WhenAny(connectTask, Task.Delay(45000)); // Extended timeout for diagnostics compared to normal timeout
+
+                if (completed != connectTask)
+                {
+                    Assert.Fail("Test timed out waiting for ConnectAsync to complete after 45 seconds.");
+                }
+
+                await connectTask; // Propagate any exceptions
             }
             catch (Exception ex)
             {
                 caughtException = ex;
             }
-            await _homeAssistantWebSocketClient.StopAsync();
 
             // Assert
             Assert.NotNull(caughtException);
             _ = Assert.IsType<InvalidOperationException>(caughtException);
-            Assert.Equal("WebSocket auth failed: Invalid token.", caughtException.Message);
-            await _userNotifier.Received(1).NotifyAsync("Error", Arg.Is<string>(s => s.Contains("WebSocket auth failed: Invalid token")));
+            Assert.Equal("WebSocket auth failed: Invalid token", caughtException.Message);
             SharedFunctions.AssertSingleLogEvent(_memorySink, LogEventLevel.Error, "WebSocket auth failed: Invalid token");
+            Assert.False(_homeAssistantWebSocketClient.IsConnected, "Client should not be connected after auth failure");
+
+            // Cleanup
+            try
+            {
+                await _homeAssistantWebSocketClient.StopAsync();
+            }
+            catch (Exception ex)
+            {
+                Assert.Fail($"Error stopping WebSocket client during test cleanup: {ex.Message}");
+            }
 
             _memoryLoggerFactory?.Dispose();
         }

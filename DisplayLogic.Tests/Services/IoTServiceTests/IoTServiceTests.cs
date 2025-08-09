@@ -8,12 +8,14 @@ namespace DisplayLogic.Tests.Services.IoTServiceTests
     {
         private readonly IIoTDevice _iotDevice;
         private readonly IBrailleDisplay _brailleDisplay;
+        private readonly IHomeAssistantWebSocketClient _haWsClient;
         private readonly ILogger<IoTService> _logger;
 
         public IoTServiceTests()
         {
             _iotDevice = Substitute.For<IIoTDevice>();
             _brailleDisplay = Substitute.For<IBrailleDisplay>();
+            _haWsClient = Substitute.For<IHomeAssistantWebSocketClient>();
             _logger = Substitute.For<ILogger<IoTService>>();
         }
 
@@ -41,7 +43,7 @@ namespace DisplayLogic.Tests.Services.IoTServiceTests
             // Assume task succeeds
             _ = _brailleDisplay.SendTextAsync(expectedResponse).Returns(Task.CompletedTask);
 
-            IoTService iotService = new(_iotDevice, _brailleDisplay, _logger);
+            IoTService iotService = new(_iotDevice, _haWsClient, _brailleDisplay, _logger);
 
             // Act
             await iotService.FlipShellySwitch($"{deviceId}", true);
