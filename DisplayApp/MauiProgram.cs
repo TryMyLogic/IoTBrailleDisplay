@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using DisplayLogic.Services;
+using DisplayLogic.SharedInterfaces;
+using Microsoft.Extensions.Logging;
 
 namespace DisplayApp
 {
@@ -15,11 +17,45 @@ namespace DisplayApp
                     fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
                 });
 
+            // Register services
+            builder.Services.AddSingleton<IUserNotifier, ConsoleUserNotifier>(); // Simple notifier for now (logs to console/output)
+            builder.Services.AddSingleton<IWebSocketClient>(sp =>
+            {
+                return new WebSocketClient("ws://localhost:8123/api/websocket", sp.GetService<IUserNotifier>());
+            });
+            builder.Services.AddSingleton<HomeAssistantWebSocketClient>(sp =>
+            {
+                return new HomeAssistantWebSocketClient(
+                                    sp.GetService<IWebSocketClient>(),
+                                    sp.GetService<IUserNotifier>(),
+                                    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJkNmU0NjZkZDZmNzQ0OGNmYjI2NmFlMzBjNTc4ZWM5MiIsImlhdCI6MTc1NDc0NzgzMSwiZXhwIjoyMDcwMTA3ODMxfQ.zqueo1YB8Az69HUtID-1Gfxso690VXUHPMB8qJnuNfo" // Get from HA Profile > Long-Lived Access Tokens
+                                );
+            });
+            builder.Services.AddSingleton<IoTDevice>(sp =>
+            {
+                return new IoTDevice(
+                                    mqttBroker: "localhost", // e.g., same as HA if integrated
+                                    restEndpoint: "http://localhost:8123/api" // Fallback REST
+                                );
+            });
+            builder.Services.AddSingleton<DisplayApp.ViewModels.MainPageViewModel>(); // Your VM
+            builder.Services.AddSingleton<MainPage>();
+
 #if DEBUG
             builder.Logging.AddDebug();
 #endif
 
             return builder.Build();
+        }
+    }
+
+    // Simple notifier implementation (add to a new file or here)
+    public class ConsoleUserNotifier : DisplayLogic.SharedInterfaces.IUserNotifier
+    {
+        public async Task NotifyAsync(string title, string message)
+        {
+            Console.WriteLine($"{title}: {message}");
+            await Task.CompletedTask;
         }
     }
 }

@@ -36,13 +36,12 @@ public partial class DevicesPage : ContentPage, IQueryAttributable
                 RoomNameLabel.Text = $"Devices in {area.name}";
 
                 var filtered = devices
-                    .Where(d =>
-                    {
-                        return d.area_id == area.area_id;
-                    })
-                    .ToList();
-
-                DevicesCollection.ItemsSource = filtered;
+                .Where(d =>
+                {
+                    return string.Equals(d.area_id, area.area_id, StringComparison.OrdinalIgnoreCase);
+                })
+                .ToList();
+                DevicesCollection.ItemsSource = devices;
             }
         }
     }

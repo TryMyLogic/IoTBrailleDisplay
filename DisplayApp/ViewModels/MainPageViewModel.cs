@@ -2,6 +2,7 @@
 using System.Windows.Input;
 using DisplayApp.Views;
 using DisplayLogic.Models;
+using DisplayLogic.Services;
 
 namespace DisplayApp.ViewModels;
 
@@ -9,28 +10,106 @@ public class MainPageViewModel
 {
     public ObservableCollection<Area> Areas { get; set; } = [];
     public ObservableCollection<MqttDevice> Devices { get; set; } = [];
-
     public ICommand OpenAreaCommand { get; }
+    private readonly HomeAssistantWebSocketClient _haClient;
+    private bool _isDataLoaded;
 
-    public MainPageViewModel()
+    public MainPageViewModel(HomeAssistantWebSocketClient haClient)
     {
-        LoadMockData(); // For testing, replace later with real data
+        _haClient = haClient;
+        OpenAreaCommand = new Command<Area>(
+               async (area) =>
+               {
+                   await OpenAreaAsync(area);
+               },
+               (area) =>
+               {
+                   return _isDataLoaded && area != null // Only enabled after data is loaded
+                   ;
+               });
 
-        OpenAreaCommand = new Command<Area>(async (area) =>
+        // Start data loading
+        _ = InitializeAsync();
+    }
+
+    private async Task InitializeAsync()
+    {
+        if (_haClient == null)
         {
-            if (area != null)
-            {
-                // Copy devices to a list
-                var devicesCopy = Devices.ToList();
+            System.Diagnostics.Debug.WriteLine("HomeAssistantWebSocketClient not registered");
+            LoadMockData();
+            _isDataLoaded = true;
+            ((Command)OpenAreaCommand).ChangeCanExecute();
+            return;
+        }
 
-                // Navigate to DevicesPage, passing area and devices
-                await Shell.Current.GoToAsync(nameof(DevicesPage), true, new Dictionary<string, object>
-                    {
-                        { "area", area },
-                        { "devices", devicesCopy }
-                    });
-            }
-        });
+        try
+        {
+            await LoadRealDataAsync();
+            _isDataLoaded = true;
+            ((Command)OpenAreaCommand).ChangeCanExecute();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error loading real data: {ex.Message}");
+            LoadMockData();
+            _isDataLoaded = true;
+            ((Command)OpenAreaCommand).ChangeCanExecute();
+        }
+    }
+
+    private async Task LoadRealDataAsync()
+    {
+        if (!_haClient.IsConnected)
+        {
+            await _haClient.ConnectAsync();
+            System.Diagnostics.Debug.WriteLine("Connected to Home Assistant WebSocket");
+        }
+
+        Areas.Clear();
+        Devices.Clear();
+
+        List<Area> areas = _haClient.Areas ?? [];
+        foreach (Area area in areas)
+        {
+            Areas.Add(area);
+        }
+
+        List<MqttDevice> devices = _haClient.Devices ?? [];
+        foreach (MqttDevice device in devices)
+        {
+            Devices.Add(device);
+        }
+
+        System.Diagnostics.Debug.WriteLine($"Loaded {Areas.Count} areas and {Devices.Count} devices");
+        System.Diagnostics.Debug.WriteLine("=== AREAS ===");
+        foreach (Area a in Areas)
+        {
+            System.Diagnostics.Debug.WriteLine($"Area: {a.area_id} - {a.name}");
+        }
+
+        System.Diagnostics.Debug.WriteLine("=== DEVICES ===");
+        foreach (MqttDevice d in Devices)
+        {
+            System.Diagnostics.Debug.WriteLine($"Device: {d.id}, Name: {d.name}, AreaId: {d.area_id}");
+        }
+    }
+
+    private async Task OpenAreaAsync(Area area)
+    {
+        if (area == null)
+        {
+            return;
+        }
+
+        // Always grab the most up-to-date devices from the client
+        List<MqttDevice> devicesCopy = _haClient.Devices ?? [];
+
+        await Shell.Current.GoToAsync(nameof(DevicesPage), true, new Dictionary<string, object>
+            {
+                { "area", area },
+                { "devices", devicesCopy }
+            });
     }
 
     private void LoadMockData()
