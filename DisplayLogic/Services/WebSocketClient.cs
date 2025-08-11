@@ -25,6 +25,7 @@ namespace DisplayLogic.Services
             try
             {
                 await _socket.ConnectAsync(new Uri(_wsUrl), CancellationToken.None);
+                _logger?.LogInformation($"WebSocket connected to URL: {_wsUrl}.");
                 await _notifier.NotifyAsync("WebSocket", "WebSocket connected.");
 
                 // Start ReceiveMessagesAsync as a background task to not block the main thread
@@ -33,8 +34,9 @@ namespace DisplayLogic.Services
                     return ReceiveMessagesAsync(_messageListenerCts.Token);
                 }, _messageListenerCts.Token);
             }
-            catch
+            catch (Exception ex)
             {
+                _logger?.LogError(ex, $"Failed to start WebSocket connection: {ex.Message}");
                 throw; // Whatever class uses this underlying should handle this exception accordingly
             }
         }
@@ -43,19 +45,23 @@ namespace DisplayLogic.Services
         {
             try
             {
+                _logger?.LogInformation("Stopping WebSocket connection...");
                 _messageListenerCts.Cancel();
                 if (_socket.State == WebSocketState.Open)
                 {
                     await _socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client closing", CancellationToken.None);
+                    _logger?.LogInformation("WebSocket closed gracefully.");
                 }
                 if (_messageListenerTask != null)
                 {
                     await _messageListenerTask;
                 }
                 await _notifier.NotifyAsync("WebSocket", "WebSocket stopped.");
+                _logger?.LogInformation("WebSocket stopped.");
             }
             catch (Exception ex)
             {
+                _logger?.LogError(ex, $"Error stopping WebSocket: {ex.Message}.");
                 await _notifier.NotifyAsync("WebSocket", $"Error stopping WebSocket: {ex.Message}");
             }
             finally
@@ -91,6 +97,7 @@ namespace DisplayLogic.Services
             }
             catch (Exception ex)
             {
+                _logger?.LogError(ex, $"Error in receive loop: {ex.Message}.");
                 await _notifier.NotifyAsync("WebSocket", $"Error in receive loop: {ex.Message}");
             }
         }

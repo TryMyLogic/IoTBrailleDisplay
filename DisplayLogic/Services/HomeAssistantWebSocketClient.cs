@@ -44,10 +44,12 @@ namespace DisplayLogic.Services
             {
                 await OnPayloadReceived(payload);
             };
+            _logger.LogDebug($"HomeAssistantWebSocketClient created with WebSocketClient: {accessToken}");
         }
 
         public async Task ConnectAsync()
         {
+            _logger.LogInformation("Starting WebSocket connection...");
             await _webSocketClient.StartAsync();
 
             using (CancellationTokenSource timeoutCts = new(TimeSpan.FromSeconds(30)))
@@ -57,10 +59,12 @@ namespace DisplayLogic.Services
                 Task completed = await Task.WhenAny(initializationProcedure, Task.Delay(Timeout.Infinite, timeoutCts.Token));
                 if (completed != initializationProcedure)
                 {
+                    _logger.LogError("Initialization timed out");
                     throw new TimeoutException("Initialization timed out");
                 }
 
                 await initializationProcedure;
+                _logger.LogInformation("WebSocket connection established.");
             }
         }
 
@@ -75,6 +79,7 @@ namespace DisplayLogic.Services
 
             if (authResult == _authFailureTcs.Task)
             {
+                _logger.LogWarning("Authentication failure.");
                 throw _authFailureTcs.Task.Result;
             }
 
@@ -86,14 +91,17 @@ namespace DisplayLogic.Services
 
         public async Task StopAsync()
         {
+            _logger.LogInformation("Stopping WebSocket connection...");
             await _webSocketClient.StopAsync();
             IsConnected = false;
+            _logger.LogInformation("WebSocket connection stopped.");
         }
 
         private async Task OnPayloadReceived(string payload)
         {
             try
             {
+                _logger.LogDebug($"Payload received: {payload}");
                 JsonDocument? jsonDocument = JsonDocument.Parse(payload);
                 JsonElement jsonRoot = jsonDocument.RootElement;
 
@@ -104,12 +112,14 @@ namespace DisplayLogic.Services
                     if (type == "auth_required")
                     {
                         await SendAuthAsync();
+                        _logger.LogDebug("WebSocket server requested authentication.");
                     }
                     else if (type == "auth_ok")
                     {
                         _ = _authSuccessTcs?.TrySetResult(true);
                         await SendDeviceRegistryCommandAsync();
                         await SendAreaRegistryCommandAsync();
+                        _logger.LogInformation("Authentication OK received from WebSocket.");
                     }
                     else if (type == "auth_invalid")
                     {
@@ -154,6 +164,7 @@ namespace DisplayLogic.Services
                             else
                             {
                                 await _notifier.NotifyAsync("Error", $"Received result for unknown command ID: {id}");
+                                _logger.LogWarning($"Received result for unknown command ID: {id}");
                             }
                         }
                     }
@@ -162,10 +173,12 @@ namespace DisplayLogic.Services
             catch (JsonException ex)
             {
                 await _notifier.NotifyAsync("Error", $"JSON parse error in WebSocket payload: {ex.Message}");
+                _logger.LogError(ex, $"Error in JSON parse: {ex.Message}");
             }
             catch (Exception ex)
             {
                 await _notifier.NotifyAsync("Error", $"Unexpected error processing WebSocket payload: {ex.Message}");
+                _logger.LogError(ex, $"Error in processing WebSocket payload: {ex.Message}");
             }
         }
 
@@ -186,6 +199,7 @@ namespace DisplayLogic.Services
             if (_deviceRegistryReceived && _areaRegistryReceived)
             {
                 _ = (_registryReceivedTcs?.TrySetResult(true));
+                _logger.LogInformation("Device and Area registries received, initialization complete.");
             }
         }
 
@@ -298,8 +312,10 @@ namespace DisplayLogic.Services
 
         public async Task UpdateDeviceAreaAsync(string uniqueId, string areaId)
         {
+            _logger.LogInformation($"UpdateDeviceAsync called with uniqueId: {uniqueId}, areaId: {areaId}.");
             if (string.IsNullOrWhiteSpace(areaId))
             {
+                _logger.LogError("Area ID cannot be null or empty.");
                 throw new ArgumentException("Area ID cannot be null or empty", nameof(areaId));
             }
 
