@@ -1,5 +1,4 @@
 using System.Collections;
-using DisplayApp.ViewModels;
 using DisplayLogic.Models;
 
 namespace DisplayApp.Views;
