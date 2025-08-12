@@ -10,10 +10,18 @@
                FontAttributes="Bold"
                TextColor="#A678E2"
                HorizontalOptions="Center" />
+        
+        <ActivityIndicator x:Name="LoadingIndicator"
+                           IsRunning="False"
+                           Color="#A678E2"
+                           IsVisible="False"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center" />
 
         <CollectionView x:Name="DevicesCollection"
                 SelectionMode="Single"
-                SelectionChanged="OnDeviceSelected">
+                SelectionChanged="OnDeviceSelected"
+                IsVisible="{Binding IsRunning, Source={x:Reference LoadingIndicator}, Converter={StaticResource InverseBooleanConverter}}">
             <CollectionView.ItemsLayout>
                 <GridItemsLayout Orientation="Vertical" Span="2" />
             </CollectionView.ItemsLayout>
@@ -25,8 +33,13 @@
                            Padding="10"
                            Margin="5">
                         <VerticalStackLayout>
-                            <Label Text="{Binding name}" TextColor="White" />
-                            <Label Text="{Binding model}" TextColor="Gray" FontSize="12" />
+                            <Label Text="{Binding name, FallbackValue='Unknown Device'}" 
+                                   TextColor="White" 
+                                   FontSize="16"
+                                   FontAttributes="Bold" />
+                            <Label Text="{Binding model, FallbackValue='Unknown Model'}" 
+                                   TextColor="Gray" 
+                                   FontSize="12" />
                         </VerticalStackLayout>
                     </Frame>
                 </DataTemplate>
