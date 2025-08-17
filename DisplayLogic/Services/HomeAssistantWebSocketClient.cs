@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Security.Authentication;
+using System.Text.Json;
 using DisplayLogic.Models;
 using DisplayLogic.SharedInterfaces;
 using Microsoft.Extensions.Logging;
@@ -44,7 +45,7 @@ namespace DisplayLogic.Services
             {
                 await OnPayloadReceived(payload);
             };
-            _logger.LogDebug($"HomeAssistantWebSocketClient created with WebSocketClient: {accessToken}");
+            _logger.LogDebug("HomeAssistantWebSocketClient created with WebSocketClient: {accessToken}", accessToken);
         }
 
         public async Task ConnectAsync()
@@ -101,7 +102,7 @@ namespace DisplayLogic.Services
         {
             try
             {
-                _logger.LogDebug($"Payload received: {payload}");
+                _logger.LogDebug("Payload received: {payload}", payload);
                 JsonDocument? jsonDocument = JsonDocument.Parse(payload);
                 JsonElement jsonRoot = jsonDocument.RootElement;
 
@@ -123,7 +124,7 @@ namespace DisplayLogic.Services
                     }
                     else if (type == "auth_invalid")
                     {
-                        InvalidOperationException ex = new("WebSocket auth failed: Invalid token");
+                        AuthenticationException ex = new("WebSocket auth failed: Invalid token");
                         _ = _authFailureTcs?.TrySetResult(ex);
                         _logger.LogError(ex, "WebSocket auth failed: Invalid token");
                         await _notifier.NotifyAsync("Error", ex.Message);
@@ -164,7 +165,7 @@ namespace DisplayLogic.Services
                             else
                             {
                                 await _notifier.NotifyAsync("Error", $"Received result for unknown command ID: {id}");
-                                _logger.LogWarning($"Received result for unknown command ID: {id}");
+                                _logger.LogWarning("Received result for unknown command ID: {id}", id);
                             }
                         }
                     }
@@ -173,12 +174,12 @@ namespace DisplayLogic.Services
             catch (JsonException ex)
             {
                 await _notifier.NotifyAsync("Error", $"JSON parse error in WebSocket payload: {ex.Message}");
-                _logger.LogError(ex, $"Error in JSON parse: {ex.Message}");
+                _logger.LogError(ex, "Error in JSON parse: {errMessage}", ex.Message);
             }
             catch (Exception ex)
             {
                 await _notifier.NotifyAsync("Error", $"Unexpected error processing WebSocket payload: {ex.Message}");
-                _logger.LogError(ex, $"Error in processing WebSocket payload: {ex.Message}");
+                _logger.LogError(ex, "Error in processing WebSocket payload: {errMessage}", ex.Message);
             }
         }
 
@@ -312,7 +313,7 @@ namespace DisplayLogic.Services
 
         public async Task UpdateDeviceAreaAsync(string uniqueId, string areaId)
         {
-            _logger.LogInformation($"UpdateDeviceAsync called with uniqueId: {uniqueId}, areaId: {areaId}.");
+            _logger.LogInformation("UpdateDeviceAsync called with uniqueId: {uniqueId}, areaId: {areaId}.", uniqueId, areaId);
             if (string.IsNullOrWhiteSpace(areaId))
             {
                 _logger.LogError("Area ID cannot be null or empty.");
@@ -322,7 +323,13 @@ namespace DisplayLogic.Services
             MqttDevice? device = Devices?.FirstOrDefault(device =>
             {
                 return device.id == uniqueId;
-            }) ?? throw new InvalidOperationException($"Device with id '{uniqueId}' not found in registry.");
+            });
+
+            if (device == null)
+            {
+                _logger.LogError("Device with id '{uniqueId}' not found in registry.", uniqueId);
+                throw new InvalidOperationException($"Device with id '{uniqueId}' not found in registry.");
+            }
 
             _updateAreaCommandId = Interlocked.Increment(ref _lastCommandId);
             object updateCommand = new

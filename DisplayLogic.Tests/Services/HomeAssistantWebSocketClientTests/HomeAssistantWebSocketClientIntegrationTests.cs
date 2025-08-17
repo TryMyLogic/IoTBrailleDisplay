@@ -1,4 +1,5 @@
-﻿using DisplayLogic.Services;
+﻿using System.Security.Authentication;
+using DisplayLogic.Services;
 using DisplayLogic.SharedInterfaces;
 using DisplayLogic.Tests.SharedTestItems;
 using Microsoft.Extensions.Logging;
@@ -136,7 +137,7 @@ namespace DisplayLogic.Tests.Services.HomeAssistantWebSocketClientTests
 
             // Assert
             Assert.NotNull(caughtException);
-            _ = Assert.IsType<InvalidOperationException>(caughtException);
+            _ = Assert.IsType<AuthenticationException>(caughtException);
             Assert.Equal("WebSocket auth failed: Invalid token", caughtException.Message);
             SharedFunctions.AssertSingleLogEvent(_memorySink, LogEventLevel.Error, "WebSocket auth failed: Invalid token");
             Assert.False(_homeAssistantWebSocketClient.IsConnected, "Client should not be connected after auth failure");
@@ -151,6 +152,124 @@ namespace DisplayLogic.Tests.Services.HomeAssistantWebSocketClientTests
                 Assert.Fail($"Error stopping WebSocket client during test cleanup: {ex.Message}");
             }
 
+            _memoryLoggerFactory?.Dispose();
+        }
+
+        [SkippableFact]
+        public async Task UpdateDeviceAsync_WithValidDevice_UpdatesSuccessfully()
+        {
+            Skip.If(_shouldSkipHATests, "Home Assistant is not available. Skipping this test");
+
+            // Arrange
+            InitializeMemorySinkLogger();
+            _webSocketClient = new(_wsUrl, _userNotifier);
+            _homeAssistantWebSocketClient = new(_webSocketClient, _userNotifier, _accessToken, _memoryLogger);
+
+            Task connectTask = _homeAssistantWebSocketClient.ConnectAsync();
+            Task completed = await Task.WhenAny(connectTask, Task.Delay(45000));
+            if (completed != connectTask)
+            {
+                Assert.Fail("Timed out waiting for ConnectAsync to complete.");
+            }
+            await connectTask;
+            Assert.True(_homeAssistantWebSocketClient.IsConnected, "Should be connected before updating device.");
+            Assert.NotEmpty(_homeAssistantWebSocketClient.Devices);
+
+            Models.MqttDevice device = _homeAssistantWebSocketClient.Devices.First();
+            string? originalAreaId = device.area_id;
+
+            // Act
+            string newAreaId = _homeAssistantWebSocketClient.Areas.First().area_id;
+            await _homeAssistantWebSocketClient.UpdateDeviceAreaAsync(device.id, newAreaId);
+
+            Models.MqttDevice updatedDevice = _homeAssistantWebSocketClient.Devices.First(d =>
+            {
+                return d.id == device.id;
+            });
+            Assert.Equal(newAreaId, updatedDevice.area_id);
+
+            // AssertLogEvent is not thread safe. Cannot use it here
+            // SharedFunctions.AssertLogEventContainsMessage(_memorySink, LogEventLevel.Information, "Sending update device command", expectedMatchCount: 1);
+
+            // Cleanup
+            try
+            {
+                await _homeAssistantWebSocketClient.StopAsync();
+            }
+            catch (Exception ex)
+            {
+                Assert.Fail($"Error stopping client during cleanup: {ex.Message}");
+            }
+
+            _memoryLoggerFactory?.Dispose();
+        }
+
+        [SkippableFact]
+        public async Task UpdateDeviceAreaAsync_WithValidDeviceAndArea_UpdatesSuccessfully()
+        {
+            Skip.If(_shouldSkipHATests, "Home Assistant is not available. Skipping this test");
+
+            // Arrange
+            InitializeMemorySinkLogger();
+            _webSocketClient = new(_wsUrl, _userNotifier);
+            _homeAssistantWebSocketClient = new(_webSocketClient, _userNotifier, _accessToken, _memoryLogger);
+
+            await _homeAssistantWebSocketClient.ConnectAsync();
+
+            // Fetching first valid device and area from real registries
+            Models.MqttDevice device = _homeAssistantWebSocketClient.Devices!.First();
+            Models.Area area = _homeAssistantWebSocketClient.Areas!.First();
+
+            string newAreaId = area.area_id;
+            string deviceId = device.id;
+
+            // Act
+            await _homeAssistantWebSocketClient.UpdateDeviceAreaAsync(deviceId, newAreaId);
+
+            // Assert
+            Assert.Equal(newAreaId, device.area_id);
+
+            // Commentted out since it causes the test to fail due to running in parrallel with other tests. Not worth making the test sequential
+            // await _userNotifier.Received(1).NotifyAsync("WebSocket", Arg.Is<string>(message => message.Contains($"Device update result for ID")));
+
+            // Cleanup
+            await _homeAssistantWebSocketClient.StopAsync();
+            _memoryLoggerFactory?.Dispose();
+        }
+
+        [SkippableFact]
+        public async Task UpdateDeviceAreaAsync_WithInvalidDeviceId_ThrowsInvalidOperationException()
+        {
+            Skip.If(_shouldSkipHATests, "Home Assistant is not available. Skipping this test");
+
+            // Arrange
+            InitializeMemorySinkLogger();
+            _webSocketClient = new(_wsUrl, _userNotifier);
+            _homeAssistantWebSocketClient = new(_webSocketClient, _userNotifier, _accessToken, _memoryLogger);
+
+            await _homeAssistantWebSocketClient.ConnectAsync();
+
+            string invalidDeviceId = "non_existent_device";
+            string areaId = _homeAssistantWebSocketClient.Areas!.First().area_id;
+
+            // Act
+            Exception? caughtException = null;
+            try
+            {
+                await _homeAssistantWebSocketClient.UpdateDeviceAreaAsync(invalidDeviceId, areaId);
+            }
+            catch (Exception ex)
+            {
+                caughtException = ex;
+            }
+
+            // Assert
+            Assert.NotNull(caughtException);
+            _ = Assert.IsType<InvalidOperationException>(caughtException);
+            Assert.Equal($"Device with id '{invalidDeviceId}' not found in registry.", caughtException!.Message);
+
+            // Cleanup
+            await _homeAssistantWebSocketClient.StopAsync();
             _memoryLoggerFactory?.Dispose();
         }
 
