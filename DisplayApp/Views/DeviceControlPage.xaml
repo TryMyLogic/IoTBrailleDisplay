@@ -39,6 +39,16 @@
                 VerticalOptions="Start"
                 Clicked="OnBackClicked" />
 
+            <ActivityIndicator x:Name="LoadingIndicator"
+                           Grid.Row="0"
+                           Grid.RowSpan="2"
+                           Grid.ColumnSpan="2"
+                           IsRunning="False"
+                           Color="#A678E2"
+                           IsVisible="False"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center" />
+
             <!-- Main Controls -->
             <Grid Grid.Row="1" Grid.Column="1"
               Padding="40" ColumnSpacing="50">

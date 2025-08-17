@@ -14,6 +14,7 @@ namespace DisplayLogic.Services
         private readonly string _mqttBroker;
         private readonly string _restEndpoint;
         private readonly MqttClientOptions _mqttOptions;
+        private readonly SemaphoreSlim _connectionLock = new(1, 1);
 
         public IoTDevice(string mqttBroker, string restEndpoint, int port = 1883, HttpClient? httpClient = null)
         {
@@ -24,7 +25,7 @@ namespace DisplayLogic.Services
             _mqttBroker = mqttBroker ?? throw new ArgumentNullException(nameof(mqttBroker));
             _mqttPort = port;
             _restEndpoint = restEndpoint ?? throw new ArgumentNullException(nameof(restEndpoint));
-            IsConnected = true; // Only false when rest is connected
+            IsConnected = false; // Only false when rest is connected
 
             _mqttOptions = new MqttClientOptionsBuilder()
            .WithTcpServer(_mqttBroker, _mqttPort)
@@ -35,6 +36,7 @@ namespace DisplayLogic.Services
             _mqttClient.DisconnectedAsync += async err =>
             {
                 Console.WriteLine($"Disconnected from MQTT broker. Reason: {err.Reason}");
+                IsConnected = false;
                 await Task.CompletedTask;
             };
         }
@@ -44,13 +46,36 @@ namespace DisplayLogic.Services
 
         public async Task ConnectAsync()
         {
-            MqttClientConnectResult response = await _mqttClient.ConnectAsync(_mqttOptions, CancellationToken.None);
-            // Update internal connection status based on broker's response
-            IsConnected = response.ResultCode == MqttClientConnectResultCode.Success;
-
-            if (!IsConnected)
+            await _connectionLock.WaitAsync();
+            try
             {
-                throw new Exception("Could not connect to MQTT broker.");
+                if (_mqttClient.IsConnected)
+                {
+                    await _mqttClient.DisconnectAsync();
+                }
+
+                if (!IsConnected) // Only connect if not already connected
+                {
+                    MqttClientConnectResult response = await _mqttClient.ConnectAsync(_mqttOptions, CancellationToken.None);
+                    IsConnected = response.ResultCode == MqttClientConnectResultCode.Success;
+
+                    if (!IsConnected)
+                    {
+                        throw new Exception($"Could not connect to MQTT broker. Result: {response.ResultCode}");
+                    }
+
+                    System.Diagnostics.Debug.WriteLine($"Connected to MQTT broker at {_mqttBroker}:{_mqttPort}");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"ConnectAsync error: {ex.Message}");
+                IsConnected = false;
+                throw;
+            }
+            finally
+            {
+                _ = _connectionLock.Release();
             }
         }
 
@@ -58,12 +83,18 @@ namespace DisplayLogic.Services
         // This method sends a DISCONNECT packet to the broker, ensuring a clean disconnection
         public async Task DisconnectAsync()
         {
-            if (_mqttClient.IsConnected)
+            await _connectionLock.WaitAsync();
+            try
             {
-                // This will send the DISCONNECT packet. Calling _Dispose_ without DisconnectAsync the
-                // connection is closed in a "not clean" way. See MQTT specification for more details.
-                await _mqttClient.DisconnectAsync(new MqttClientDisconnectOptionsBuilder().WithReason(MqttClientDisconnectOptionsReason.NormalDisconnection).Build());
-                IsConnected = false;
+                if (_mqttClient.IsConnected)
+                {
+                    await _mqttClient.DisconnectAsync(new MqttClientDisconnectOptionsBuilder().WithReason(MqttClientDisconnectOptionsReason.NormalDisconnection).Build());
+                    IsConnected = false;
+                }
+            }
+            finally
+            {
+                _ = _connectionLock.Release();
             }
         }
 
