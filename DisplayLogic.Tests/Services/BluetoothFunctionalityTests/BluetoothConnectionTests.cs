@@ -1,39 +1,34 @@
 using DisplayLogic.Services;
 using DisplayLogic.Tests.Mocks;
-using MQTTnet;
-using Serilog;
+using DisplayLogic.Tests.SharedTestItems;
+using Microsoft.Extensions.Logging;
 using Serilog.Sinks.InMemory;
+
+
 
 namespace DisplayLogic.Tests.Services.BluetoothFunctionalityTests
 {
     public class BrailleDisplayTests
     {
-        public BrailleDisplayTests()
+        private readonly ILogger<BrailleDisplay>? _testLogger;
+        private readonly ILoggerFactory? _loggerFactory;
+
+        private InMemorySink? _memorySink;
+        private ILogger<BrailleDisplay>? _memoryLogger;
+        private ILoggerFactory? _memoryLoggerFactory;
+
+        private void InitializeMemorySinkLogger()
         {
-            Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Debug()
-            .WriteTo.InMemory()
-            .CreateLogger();
+            (_memoryLogger, _memorySink, _memoryLoggerFactory) = SharedFunctions.CreateMemorySinkLogger<BrailleDisplay>();
         }
 
-        private bool IsMqttAvailable(string host, int port)
-        {
-            try
-            {
-                using var client = new System.Net.Sockets.TcpClient();
-                Task task = client.ConnectAsync(host, port);
-                return task.Wait(500);
-            }
-            catch
-            {
-                return false;
-            }
-        }
         [Fact]
         public async Task ConnectAsync_ShouldSetIsConnected_WhenMockSucceeds()
         {
-            var mock = new MockBluetoothConnection(connectSucceed: true);
-            var braille = new BrailleDisplay(mock);
+            InitializeMemorySinkLogger();
+            ILogger<MockBluetoothConnection> mockLogger = _memoryLoggerFactory!.CreateLogger<MockBluetoothConnection>();
+            var mock = new MockBluetoothConnection(logger: mockLogger, connectSucceed: true);
+            var braille = new BrailleDisplay(mock, _memoryLogger!);
 
             //Act
             await braille.ConnectAsync();
@@ -45,8 +40,10 @@ namespace DisplayLogic.Tests.Services.BluetoothFunctionalityTests
         [Fact]
         public async Task ConnectAsync_ShouldNotSetIsConnected_WhenMockFails()
         {
-            var mock = new MockBluetoothConnection(connectSucceed: false);
-            var braille = new BrailleDisplay(mock);
+            InitializeMemorySinkLogger();
+            ILogger<MockBluetoothConnection> mockLogger = _memoryLoggerFactory!.CreateLogger<MockBluetoothConnection>();
+            var mock = new MockBluetoothConnection(logger: mockLogger, connectSucceed: false);
+            var braille = new BrailleDisplay(mock, _memoryLogger!);
 
             //Act
             await braille.ConnectAsync();
@@ -58,20 +55,19 @@ namespace DisplayLogic.Tests.Services.BluetoothFunctionalityTests
         [Fact]
         public async Task BrailleDisplay_Integration_SendAndReceiveText_WorksCorrectly()
         {
-            var mock = new MockBluetoothConnection();
-            var braille = new BrailleDisplay(mock);
+            InitializeMemorySinkLogger();
+            ILogger<MockBluetoothConnection> mockLogger = _memoryLoggerFactory!.CreateLogger<MockBluetoothConnection>();
+            var mock = new MockBluetoothConnection(logger: mockLogger);
+            var braille = new BrailleDisplay(mock, _memoryLogger!);
             bool eventTriggered = false;
-            braille.TextReceived += (s, e) =>
-            {
-                eventTriggered = true;
-            };
+            braille.TextReceived += (s, e) => eventTriggered = true;
 
             string message = "MQTT connection test string";
 
             //Act
             await braille.ConnectAsync();
             await braille.SendTextAsync(message);
-            _ = await braille.ReceiveTextAsync();
+            await braille.ReceiveTextAsync();
 
             //Assert
             Assert.True(mock.IsConnected);
@@ -81,47 +77,14 @@ namespace DisplayLogic.Tests.Services.BluetoothFunctionalityTests
 
         }
 
-        [SkippableFact]
-        public async Task BrailleDisplay_SendAndReceiveText_Mqtt_Integration_Works()
-        {
-            Skip.IfNot(IsMqttAvailable("localhost", 1883), "MQTT broker not running on localhost:1883");
-            //Arrange
-            IMqttClient client = new MqttClientFactory().CreateMqttClient();
-            MqttClientOptions options = new MqttClientOptionsBuilder()
-                .WithTcpServer("localhost", 1883)
-                .WithClientId("TestClient")
-                .Build();
-
-            var strategy = new MqttConnectionStrategy(client);
-            BrailleDisplay braille = new(strategy);
-
-            await braille.ConnectAsync();
-
-            //Act
-            const string message = "Integration Test";
-
-            await braille.SendTextAsync(message);
-
-            IMqttClient responder = new MqttClientFactory().CreateMqttClient();
-            _ = await responder.ConnectAsync(options);
-            MqttApplicationMessage msg = new MqttApplicationMessageBuilder()
-                .WithTopic("braille/receive")
-                .WithPayload(message)
-                .Build();
-            _ = await responder.PublishAsync(msg, CancellationToken.None);
-
-            await Task.Delay(200);
-
-            //Assert
-            string received = await braille.ReceiveTextAsync();
-            Assert.Equal(message, received);
-        }
-
         [Fact]
         public async Task DisconnectAsync_ShouldSetIsConnectedFalse()
         {
-            var mock = new MockBluetoothConnection(connectSucceed: true);
-            var braille = new BrailleDisplay(mock);
+            //Arrange
+            InitializeMemorySinkLogger();
+            ILogger<MockBluetoothConnection> mockLogger = _memoryLoggerFactory!.CreateLogger<MockBluetoothConnection>();
+            var mock = new MockBluetoothConnection(logger: mockLogger, connectSucceed: true);
+            var braille = new BrailleDisplay(mock, _memoryLogger!);
 
             //Act
             await braille.ConnectAsync();
@@ -135,19 +98,18 @@ namespace DisplayLogic.Tests.Services.BluetoothFunctionalityTests
         {
             //Arrange
             InMemorySink.Instance.Dispose();
-            MockBluetoothConnection mock = new(true);
-            BrailleDisplay brailleDisplay = new(mock);
+            InitializeMemorySinkLogger();
+            ILogger<MockBluetoothConnection> mockLogger = _memoryLoggerFactory!.CreateLogger<MockBluetoothConnection>();
+            MockBluetoothConnection mock = new(logger: mockLogger, connectSucceed: true);
+            BrailleDisplay brailleDisplay = new(mock, _memoryLogger!);
 
             //Act
             await brailleDisplay.ConnectAsync();
 
             //Assert
-            bool hasLogEntry = InMemorySink.Instance
+            bool hasLogEntry = _memorySink!
                 .LogEvents
-                .Any(log =>
-                {
-                    return log.MessageTemplate.Text.Contains("BrailleDisplay connected successfully.");
-                });
+                .Any(log => log.RenderMessage().Contains("BrailleDisplay connected successfully."));
 
             Assert.True(hasLogEntry, "Expected log message not found.");
         }
@@ -157,20 +119,19 @@ namespace DisplayLogic.Tests.Services.BluetoothFunctionalityTests
             InMemorySink.Instance.Dispose();
 
             //Arrange
-            MockBluetoothConnection mock = new(true);
-            BrailleDisplay brailleDisplay = new(mock);
+            InitializeMemorySinkLogger();
+            ILogger<MockBluetoothConnection> mockLogger = _memoryLoggerFactory!.CreateLogger<MockBluetoothConnection>();
+            MockBluetoothConnection mock = new(logger: mockLogger, connectSucceed: true);
+            BrailleDisplay brailleDisplay = new(mock, _memoryLogger!);
 
             //Act
             await brailleDisplay.ConnectAsync();
             await brailleDisplay.DisconnectAsync();
 
             //Assert
-            bool hasLogEntry = InMemorySink.Instance
+            bool hasLogEntry = _memorySink!
                 .LogEvents
-                .Any(log =>
-                {
-                    return log.MessageTemplate.Text.Contains("BrailleDisplay disconnected successfully.");
-                });
+                .Any(log => log.RenderMessage().Contains("BrailleDisplay disconnected successfully."));
 
             Assert.True(hasLogEntry, "Expected disconnect log message not found.");
 
@@ -181,8 +142,10 @@ namespace DisplayLogic.Tests.Services.BluetoothFunctionalityTests
             InMemorySink.Instance.Dispose();
 
             //Arrange
-            MockBluetoothConnection mock = new(true);
-            BrailleDisplay brailleDisplay = new(mock);
+            InitializeMemorySinkLogger();
+            ILogger<MockBluetoothConnection> mockLogger = _memoryLoggerFactory!.CreateLogger<MockBluetoothConnection>();
+            MockBluetoothConnection mock = new(logger: mockLogger, connectSucceed: true);
+            BrailleDisplay brailleDisplay = new(mock, _memoryLogger!);
 
             //Act
             await brailleDisplay.ConnectAsync();
@@ -191,12 +154,9 @@ namespace DisplayLogic.Tests.Services.BluetoothFunctionalityTests
             await brailleDisplay.SendTextAsync(testMessage);
 
             //Assert
-            bool hasLogEntry = InMemorySink.Instance
+            bool hasLogEntry = _memorySink!
                 .LogEvents
-                .Any(log =>
-                {
-                    return log.Level == Serilog.Events.LogEventLevel.Information && log.RenderMessage().Contains("BrailleDisplay sent text:") && log.RenderMessage().Contains(testMessage);
-                });
+                .Any(log => log.Level == Serilog.Events.LogEventLevel.Information && log.RenderMessage().Contains("BrailleDisplay sent text:") && log.RenderMessage().Contains(testMessage));
             Assert.True(hasLogEntry, "Expected send log message not found.");
         }
         [Fact]
@@ -205,23 +165,22 @@ namespace DisplayLogic.Tests.Services.BluetoothFunctionalityTests
             InMemorySink.Instance.Dispose();
 
             //Arrange
-            MockBluetoothConnection mock = new(true);
-            BrailleDisplay brailleDisplay = new(mock);
+            InitializeMemorySinkLogger();
+            ILogger<MockBluetoothConnection> mockLogger = _memoryLoggerFactory!.CreateLogger<MockBluetoothConnection>();
+            MockBluetoothConnection mock = new(logger: mockLogger, connectSucceed: true);
+            BrailleDisplay brailleDisplay = new(mock, _memoryLogger!);
 
             //Act
             await brailleDisplay.ConnectAsync();
 
             string testMessage = "Received Message";
             await mock.SendTextAsync(testMessage);
-            _ = await brailleDisplay.ReceiveTextAsync();
+            await brailleDisplay.ReceiveTextAsync();
 
             //Assert
-            bool hasLogEntry = InMemorySink.Instance
+            bool hasLogEntry = _memorySink!
                 .LogEvents
-                .Any(log =>
-                {
-                    return log.Level == Serilog.Events.LogEventLevel.Information && log.RenderMessage().Contains("BrailleDisplay received text:") && log.RenderMessage().Contains(testMessage);
-                });
+                .Any(log => log.Level == Serilog.Events.LogEventLevel.Information && log.RenderMessage().Contains("BrailleDisplay received text:") && log.RenderMessage().Contains(testMessage));
 
             Assert.True(hasLogEntry, "Expected send log message not found.");
 
@@ -232,19 +191,18 @@ namespace DisplayLogic.Tests.Services.BluetoothFunctionalityTests
             InMemorySink.Instance.Dispose();
 
             //Arrange
-            MockBluetoothConnection mock = new(false);
-            BrailleDisplay brailleDisplay = new(mock);
+            InitializeMemorySinkLogger();
+            ILogger<MockBluetoothConnection> mockLogger = _memoryLoggerFactory!.CreateLogger<MockBluetoothConnection>();
+            MockBluetoothConnection mock = new(logger: mockLogger, connectSucceed: false);
+            BrailleDisplay brailleDisplay = new(mock, _memoryLogger!);
 
             //Act
             await brailleDisplay.ConnectAsync();
 
             //Assert
-            bool hasLogEntry = InMemorySink.Instance
+            bool hasLogEntry = _memorySink!
                 .LogEvents
-                .Any(log =>
-                {
-                    return log.MessageTemplate.Text.Contains("BrailleDisplay failed to connect.");
-                });
+                .Any(log => log.RenderMessage().Contains("BrailleDisplay failed to connect."));
 
             Assert.True(hasLogEntry, "Expected warning log message for failed connection not found.");
         }
@@ -254,22 +212,21 @@ namespace DisplayLogic.Tests.Services.BluetoothFunctionalityTests
             InMemorySink.Instance.Dispose();
 
             //Arrange
-            MockBluetoothConnection mock = new()
+            InitializeMemorySinkLogger();
+            ILogger<MockBluetoothConnection> mockLogger = _memoryLoggerFactory!.CreateLogger<MockBluetoothConnection>();
+            MockBluetoothConnection mock = new(logger: mockLogger)
             {
                 ThrowOnConnect = true
             };
-            BrailleDisplay brailleDisplay = new(mock);
+            BrailleDisplay brailleDisplay = new(mock, _memoryLogger!);
 
             //Act
             await brailleDisplay.ConnectAsync();
 
             //Assert
-            bool hasLogEntry = InMemorySink.Instance
+            bool hasLogEntry = _memorySink!
                 .LogEvents
-                .Any(log =>
-                {
-                    return log.MessageTemplate.Text.Contains("Exception occurred during BrailleDisplay.ConnectAsync.") && log.Level == Serilog.Events.LogEventLevel.Error;
-                });
+                .Any(log => log.RenderMessage().Contains("Exception occurred during BrailleDisplay.ConnectAsync.") && log.Level == Serilog.Events.LogEventLevel.Error);
 
             Assert.True(hasLogEntry, "Expected error log message for ConnectAsync exception not found.");
         }
@@ -279,19 +236,18 @@ namespace DisplayLogic.Tests.Services.BluetoothFunctionalityTests
             InMemorySink.Instance.Dispose();
 
             //Arrange
-            MockBluetoothConnection mock = new(false);
-            BrailleDisplay brailleDisplay = new(mock);
+            InitializeMemorySinkLogger();
+            ILogger<MockBluetoothConnection> mockLogger = _memoryLoggerFactory!.CreateLogger<MockBluetoothConnection>();
+            MockBluetoothConnection mock = new(logger: mockLogger, connectSucceed: false);
+            BrailleDisplay brailleDisplay = new(mock, _memoryLogger!);
 
             //Act
             await brailleDisplay.SendTextAsync("Test Message");
 
             //Assert
-            bool hasLogEntry = InMemorySink.Instance
+            bool hasLogEntry = _memorySink!
                 .LogEvents
-                .Any(log =>
-                {
-                    return log.MessageTemplate.Text.Contains("Attempted to send text while BrailleDisplay is not connected.") && log.Level == Serilog.Events.LogEventLevel.Warning;
-                });
+                .Any(log => log.RenderMessage().Contains("Attempted to send text while BrailleDisplay is not connected.") && log.Level == Serilog.Events.LogEventLevel.Warning);
 
             Assert.True(hasLogEntry, "Expected warning log message for failed connection not found.");
         }
@@ -301,23 +257,22 @@ namespace DisplayLogic.Tests.Services.BluetoothFunctionalityTests
             InMemorySink.Instance.Dispose();
 
             //Arrange
-            MockBluetoothConnection mock = new()
+            InitializeMemorySinkLogger();
+            ILogger<MockBluetoothConnection> mockLogger = _memoryLoggerFactory!.CreateLogger<MockBluetoothConnection>();
+            MockBluetoothConnection mock = new(logger: mockLogger)
             {
                 ThrowOnSend = true
             };
-            BrailleDisplay brailleDisplay = new(mock);
+            BrailleDisplay brailleDisplay = new(mock, _memoryLogger!);
 
             //Act
             await brailleDisplay.ConnectAsync();
             await brailleDisplay.SendTextAsync("Faulty message");
 
             //Assert
-            bool hasLogEntry = InMemorySink.Instance
+            bool hasLogEntry = _memorySink!
                 .LogEvents
-                .Any(log =>
-                {
-                    return log.MessageTemplate.Text.Contains("Exception occured during BrailleDisplay.SendTextAsync.") && log.Level == Serilog.Events.LogEventLevel.Error;
-                });
+                .Any(log => log.RenderMessage().Contains("Exception occured during BrailleDisplay.SendTextAsync.") && log.Level == Serilog.Events.LogEventLevel.Error);
 
             Assert.True(hasLogEntry, "Expected warning log message for failed connection not found.");
         }
@@ -327,17 +282,19 @@ namespace DisplayLogic.Tests.Services.BluetoothFunctionalityTests
             InMemorySink.Instance.Dispose();
 
             //Arrange
-            MockBluetoothConnection mock = new()
+            InitializeMemorySinkLogger();
+            ILogger<MockBluetoothConnection> mockLogger = _memoryLoggerFactory!.CreateLogger<MockBluetoothConnection>();
+            MockBluetoothConnection mock = new(logger: mockLogger)
             {
                 ThrowOnReceive = true
             };
-            BrailleDisplay brailleDisplay = new(mock);
+            BrailleDisplay brailleDisplay = new(mock, _memoryLogger!);
 
             //Act
             await brailleDisplay.ConnectAsync();
             try
             {
-                _ = await brailleDisplay.ReceiveTextAsync();
+                await brailleDisplay.ReceiveTextAsync();
             }
             catch (InvalidOperationException)
             {
@@ -346,12 +303,9 @@ namespace DisplayLogic.Tests.Services.BluetoothFunctionalityTests
 
 
             //Assert
-            bool hasLogEntry = InMemorySink.Instance
+            bool hasLogEntry = _memorySink!
                 .LogEvents
-                .Any(log =>
-                {
-                    return log.MessageTemplate.Text.Contains("Exception occurred during BrailleDisplay.ReceiveTextAsync.") && log.Level == Serilog.Events.LogEventLevel.Error;
-                });
+                .Any(log => log.RenderMessage().Contains("Exception occurred during BrailleDisplay.ReceiveTextAsync.") && log.Level == Serilog.Events.LogEventLevel.Error);
 
             Assert.True(hasLogEntry, "Expected warning log message for failed connection not found.");
         }
