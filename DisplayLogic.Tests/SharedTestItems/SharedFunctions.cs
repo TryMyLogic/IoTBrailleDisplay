@@ -117,6 +117,12 @@ namespace DisplayLogic.Tests.SharedTestItems
                 }
             }
 
+            // Allow empty log events when expectedMatchCount is 0
+            if (expectedMatchCount == 0 && !memorySink.LogEvents.Any())
+            {
+                return;
+            }
+
             if (!memorySink.LogEvents.Any())
             {
                 Assert.Fail("No log events found.");
