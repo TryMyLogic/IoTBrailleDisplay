@@ -1,4 +1,5 @@
 ﻿using DisplayApp.ViewModels;
+using DisplayApp.Views;
 
 namespace DisplayApp
 {

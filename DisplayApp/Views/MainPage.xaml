@@ -4,28 +4,14 @@
              xmlns:local="clr-namespace:DisplayApp"
              x:Class="DisplayApp.MainPage"
              Title="IoTBraille Display Home"
-             BackgroundColor="#302F3F">
+             BackgroundColor="#302F3F"
+             xmlns:views="clr-namespace:DisplayApp.Views">
 
     <Grid ColumnDefinitions="Auto,*">
         <!-- Sidebar Navigation -->
-        <Frame BackgroundColor="#2E2C45"
-               CornerRadius="20"
-               Padding="0"
-               Margin="0"
-               WidthRequest="80"
-               HasShadow="False"
-               Grid.Column="0"
-               VerticalOptions="Fill"
-               HorizontalOptions="Center">
-            <StackLayout Spacing="40"
-                         Padding="10"
-                         HorizontalOptions="Center"
-                         VerticalOptions="Center">
-                <Image Source="user_icon.png" HeightRequest="30" />
-                <Image Source="home_icon.png" HeightRequest="30" />
-                <Image Source="settings_icon.png" HeightRequest="30" />
-            </StackLayout>
-        </Frame>
+        <views:CustomNavBar Grid.Column="0"
+                            VerticalOptions="Fill"
+                            HorizontalOptions="Start"/>
 
         <!-- Main Content -->
         <ScrollView Grid.Column="1">

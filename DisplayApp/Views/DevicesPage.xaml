@@ -3,47 +3,54 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="DisplayApp.Views.DevicesPage"
              Title="Devices"
-             BackgroundColor="#302F3F">
-    <VerticalStackLayout Padding="20" Spacing="10">
-        <Label x:Name="RoomNameLabel"
+             BackgroundColor="#302F3F"
+             xmlns:views="clr-namespace:DisplayApp.Views">
+    <Grid ColumnDefinitions="Auto,*">
+        <!-- Sidebar Navigation -->
+        <views:CustomNavBar Grid.Column="0"
+                    VerticalOptions="Fill"
+                    HorizontalOptions="Start"/>
+        <VerticalStackLayout Padding="20" Spacing="10" Grid.Column="1">
+            <Label x:Name="RoomNameLabel"
                FontSize="22"
                FontAttributes="Bold"
                TextColor="#A678E2"
                HorizontalOptions="Center" />
-        
-        <ActivityIndicator x:Name="LoadingIndicator"
+
+            <ActivityIndicator x:Name="LoadingIndicator"
                            IsRunning="False"
                            Color="#A678E2"
                            IsVisible="False"
                            HorizontalOptions="Center"
                            VerticalOptions="Center" />
 
-        <CollectionView x:Name="DevicesCollection"
+            <CollectionView x:Name="DevicesCollection"
                 SelectionMode="Single"
                 SelectionChanged="OnDeviceSelected"
                 IsVisible="{Binding IsRunning, Source={x:Reference LoadingIndicator}, Converter={StaticResource InverseBooleanConverter}}">
-            <CollectionView.ItemsLayout>
-                <GridItemsLayout Orientation="Vertical" Span="2" />
-            </CollectionView.ItemsLayout>
+                <CollectionView.ItemsLayout>
+                    <GridItemsLayout Orientation="Vertical" Span="2" />
+                </CollectionView.ItemsLayout>
 
-            <CollectionView.ItemTemplate>
-                <DataTemplate>
-                    <Frame BackgroundColor="#3E3C5C"
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Frame BackgroundColor="#3E3C5C"
                            CornerRadius="10"
                            Padding="10"
                            Margin="5">
-                        <VerticalStackLayout>
-                            <Label Text="{Binding name, FallbackValue='Unknown Device'}" 
+                            <VerticalStackLayout>
+                                <Label Text="{Binding name, FallbackValue='Unknown Device'}" 
                                    TextColor="White" 
                                    FontSize="16"
                                    FontAttributes="Bold" />
-                            <Label Text="{Binding model, FallbackValue='Unknown Model'}" 
+                                <Label Text="{Binding model, FallbackValue='Unknown Model'}" 
                                    TextColor="Gray" 
                                    FontSize="12" />
-                        </VerticalStackLayout>
-                    </Frame>
-                </DataTemplate>
-            </CollectionView.ItemTemplate>
-        </CollectionView>
-    </VerticalStackLayout>
+                            </VerticalStackLayout>
+                        </Frame>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </VerticalStackLayout>
+    </Grid>
 </ContentPage>

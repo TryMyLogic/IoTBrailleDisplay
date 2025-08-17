@@ -4,21 +4,20 @@
              x:Class="DisplayApp.Views.DeviceControlPage"
              Background="#2D2B3E"
              Title="Control Panel"
-             NavigationPage.HasNavigationBar="False">
+             NavigationPage.HasNavigationBar="False"
+             xmlns:views="clr-namespace:DisplayApp.Views">
 
     <Grid ColumnDefinitions="80,*" RowDefinitions="Auto,*">
 
-        <!-- Sidebar -->
-        <Frame Grid.RowSpan="2" BackgroundColor="#3B3950" CornerRadius="20" HasShadow="False" Padding="0" Margin="0">
-            <StackLayout Spacing="30" Padding="10" VerticalOptions="Center" HorizontalOptions="Center">
-                <Image Source="user_icon.png" HeightRequest="28" />
-                <Image Source="home_icon.png" HeightRequest="28" />
-                <Image Source="settings_icon.png" HeightRequest="28" />
-            </StackLayout>
-        </Frame>
+        <!-- Sidebar Navigation -->
+        <views:CustomNavBar Grid.Column="0" Grid.RowSpan="2"
+            VerticalOptions="Fill"
+            HorizontalOptions="Start"/>
 
-        <!-- Device name centered at top -->
-        <Label x:Name="DeviceNameLabel"
+        <VerticalStackLayout Padding="20" Spacing="10" Grid.Column="1">
+
+            <!-- Device name centered at top -->
+            <Label x:Name="DeviceNameLabel"
                Grid.Column="1"
                Grid.Row="0"
                TextColor="#A678E2"
@@ -28,8 +27,8 @@
                VerticalOptions="Center"
                Margin="0,30,0,10" />
 
-        <!-- Back Button -->
-        <Button Text="← Back"
+            <!-- Back Button -->
+            <Button Text="← Back"
                 Grid.Column="1"
                 Grid.Row="1"
                 Margin="20,0"
@@ -40,28 +39,29 @@
                 VerticalOptions="Start"
                 Clicked="OnBackClicked" />
 
-        <!-- Main Controls -->
-        <Grid Grid.Row="1" Grid.Column="1"
+            <!-- Main Controls -->
+            <Grid Grid.Row="1" Grid.Column="1"
               Padding="40" ColumnSpacing="50">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
 
-            <!-- Left dynamic slot -->
-            <StackLayout x:Name="LeftPane"
+                <!-- Left dynamic slot -->
+                <StackLayout x:Name="LeftPane"
                          Grid.Column="0"
                          HorizontalOptions="Center"
                          VerticalOptions="Center"
                          Spacing="20" />
 
-            <!-- Right dynamic slot -->
-            <StackLayout x:Name="RightPane"
+                <!-- Right dynamic slot -->
+                <StackLayout x:Name="RightPane"
                          Grid.Column="1"
                          HorizontalOptions="Center"
                          VerticalOptions="Center"
                          Spacing="20" />
-        </Grid>
+            </Grid>
+        </VerticalStackLayout>
     </Grid>
 
 
