@@ -13,11 +13,10 @@ namespace DisplayLogic.Services
     {
         private readonly ClientWebSocket _socket = new();
         private readonly string _wsUrl = wsUrl ?? throw new ArgumentNullException(nameof(wsUrl));
-        private readonly ILogger<WebSocketClient>? _logger = logger ?? NullLogger<WebSocketClient>.Instance;
+        private readonly ILogger<WebSocketClient> _logger = logger ?? NullLogger<WebSocketClient>.Instance;
         private readonly IUserNotifier _notifier = notifier ?? throw new ArgumentNullException(nameof(notifier));
         private Task? _messageListenerTask;
         private readonly CancellationTokenSource _messageListenerCts = new();
-
         public event Action<string>? PayloadReceived;
 
         public async Task StartAsync()
@@ -25,8 +24,9 @@ namespace DisplayLogic.Services
             try
             {
                 await _socket.ConnectAsync(new Uri(_wsUrl), CancellationToken.None);
-                _logger?.LogInformation($"WebSocket connected to URL: {_wsUrl}.");
+                _logger.LogInformation("WebSocket connected to URL: {URL}.", _wsUrl);
                 await _notifier.NotifyAsync("WebSocket", "WebSocket connected.");
+                _logger.LogInformation("WebSocket Payload: WebSocket connected.");
 
                 // Start ReceiveMessagesAsync as a background task to not block the main thread
                 _messageListenerTask = Task.Run(() =>
@@ -36,7 +36,7 @@ namespace DisplayLogic.Services
             }
             catch (Exception ex)
             {
-                _logger?.LogError(ex, $"Failed to start WebSocket connection: {ex.Message}");
+                _logger.LogError(ex, "Failed to start WebSocket connection: {errMessage}", ex.Message);
                 throw; // Whatever class uses this underlying should handle this exception accordingly
             }
         }
@@ -45,23 +45,24 @@ namespace DisplayLogic.Services
         {
             try
             {
-                _logger?.LogInformation("Stopping WebSocket connection...");
+                _logger.LogInformation("Stopping WebSocket connection...");
                 _messageListenerCts.Cancel();
+                _logger.LogDebug("WebSocketState: {state}", _socket.State);
                 if (_socket.State == WebSocketState.Open)
                 {
                     await _socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client closing", CancellationToken.None);
-                    _logger?.LogInformation("WebSocket closed gracefully.");
+                    _logger.LogInformation("WebSocket closed gracefully.");
                 }
                 if (_messageListenerTask != null)
                 {
                     await _messageListenerTask;
                 }
                 await _notifier.NotifyAsync("WebSocket", "WebSocket stopped.");
-                _logger?.LogInformation("WebSocket stopped.");
+                _logger.LogInformation("WebSocket Payload: WebSocket stopped.");
             }
             catch (Exception ex)
             {
-                _logger?.LogError(ex, $"Error stopping WebSocket: {ex.Message}.");
+                _logger.LogError(ex, "Error stopping WebSocket: {errMessage}.", ex.Message);
                 await _notifier.NotifyAsync("WebSocket", $"Error stopping WebSocket: {ex.Message}");
             }
             finally
@@ -97,7 +98,7 @@ namespace DisplayLogic.Services
             }
             catch (Exception ex)
             {
-                _logger?.LogError(ex, $"Error in receive loop: {ex.Message}.");
+                _logger.LogError(ex, "Error in receive loop: {errMessage}.", ex.Message);
                 await _notifier.NotifyAsync("WebSocket", $"Error in receive loop: {ex.Message}");
             }
         }
@@ -122,7 +123,7 @@ namespace DisplayLogic.Services
 
         private async Task LogAsync(string message)
         {
-            _logger?.LogInformation("WebSocket Payload: {message}", message);
+            _logger.LogInformation("WebSocket Payload: {message}", message);
             await _notifier.NotifyAsync("WebSocket Payload", message);
         }
     }
