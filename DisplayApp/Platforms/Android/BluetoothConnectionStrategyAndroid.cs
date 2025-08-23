@@ -2,7 +2,8 @@
 using Android.Bluetooth;
 using Android.Content;
 using DisplayLogic.Services;
-using Serilog;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DisplayApp.Platforms.Android
 {
@@ -12,9 +13,12 @@ namespace DisplayApp.Platforms.Android
         private BluetoothSocket? _bluetoothSocket = null!;
 
         private static readonly Java.Util.UUID uuid = Java.Util.UUID.FromString("00001101-0000-1000-8000-00805F9B34FB")!;
-
+        private readonly ILogger<BluetoothConnectionStrategyAndroid>? _logger = null;
         public bool IsConnected => _bluetoothSocket?.IsConnected ?? false;
-
+        public BluetoothConnectionStrategyAndroid(ILogger<BluetoothConnectionStrategyAndroid>? logger = null)
+        {
+            _logger = logger ?? NullLogger<BluetoothConnectionStrategyAndroid>.Instance;
+        }
         private void EnsureConnected()
         {
             if (_bluetoothSocket == null || !_bluetoothSocket.IsConnected || _bluetoothSocket.InputStream == null || _bluetoothSocket.OutputStream == null)
@@ -31,41 +35,41 @@ namespace DisplayApp.Platforms.Android
 
                 if (context == null)
                 {
-                    Log.Warning("Context is null");
+                    _logger?.LogWarning("Context is null");
                 }
 
                 BluetoothManager? bluetoothManager = (BluetoothManager?)context?.GetSystemService(Context.BluetoothService);
 
                 if (bluetoothManager == null)
                 {
-                    Log.Warning("BluetoothManager is not available");
+                    _logger?.LogWarning("BluetoothManager is not available");
                     return false;
                 }
 
                 _adapter = bluetoothManager?.Adapter;
                 if (_adapter == null || !_adapter.IsEnabled)
                 {
-                    Log.Warning("Bluetooth adapter is not available or not enabled");
+                    _logger?.LogWarning("Bluetooth adapter is not available or not enabled");
                     return false;
                 }
 
                 BluetoothDevice? device = _adapter.BondedDevices?.FirstOrDefault();
                 if (device == null)
                 {
-                    Log.Warning("No Paired Bluetooth devices found");
+                    _logger?.LogWarning("No Paired Bluetooth devices found");
                     return false;
                 }
 
                 _bluetoothSocket = device.CreateInsecureRfcommSocketToServiceRecord(uuid);
                 if (_bluetoothSocket == null)
                 {
-                    Log.Error("Failed to create Bluetooth socket");
+                    _logger?.LogError("Failed to create Bluetooth socket");
                     return false;
                 }
                 await _bluetoothSocket.ConnectAsync();
                 if (!_bluetoothSocket.IsConnected)
                 {
-                    Log.Error("Failed to connect to Bluetooth socket");
+                    _logger?.LogError("Failed to connect to Bluetooth socket");
                     return false;
                 }
                 return _bluetoothSocket.IsConnected;
@@ -73,7 +77,7 @@ namespace DisplayApp.Platforms.Android
 
             catch (Exception ex)
             {
-                Log.Error($"Android Bluetooth failed {ex.Message}");
+                _logger?.LogError($"Android Bluetooth failed {ex.Message}");
                 return false;
             }
         }
@@ -85,11 +89,11 @@ namespace DisplayApp.Platforms.Android
                 EnsureConnected();
                 byte[] buffer = Encoding.UTF8.GetBytes(text);
                 await _bluetoothSocket!.OutputStream!.WriteAsync(buffer);
-                Log.Information($"Sending text via Bluetooth: {text}.");
+                _logger?.LogInformation($"Sending text via Bluetooth: {text}.");
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Error sending text over Bluetooth.");
+                _logger?.LogError(ex, "Error sending text over Bluetooth.");
                 throw;
             }
         }
@@ -106,7 +110,7 @@ namespace DisplayApp.Platforms.Android
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Error receiving text over Bluetooth.");
+                _logger?.LogError(ex, "Error receiving text over Bluetooth.");
                 throw;
             }
         }
@@ -117,13 +121,13 @@ namespace DisplayApp.Platforms.Android
             {
                 _bluetoothSocket?.Close();
                 _bluetoothSocket = null;
-                Log.Information("Disconnecting Bluetooth device.");
+                _logger?.LogInformation("Disconnecting Bluetooth device.");
                 return Task.FromResult(true);
             }
 
             catch (Exception ex)
             {
-                Log.Error(ex, "Error during Bluetooth disconnect");
+                _logger?.LogError(ex, "Error during Bluetooth disconnect");
                 return Task.FromResult(false);
             }
         }
