@@ -3,7 +3,6 @@ using System.Text;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using MQTTnet;
-using MQTTnet.Exceptions;
 
 
 namespace DisplayLogic.Services
@@ -19,9 +18,9 @@ namespace DisplayLogic.Services
         private readonly string _restEndpoint;
         private readonly MqttClientOptions _mqttOptions;
         private readonly SemaphoreSlim _connectionLock = new(1, 1);
-        private readonly Dictionary<string, Action<string>> _subscriptionCallbacks = new();
+        private readonly Dictionary<string, Action<string>> _subscriptionCallbacks = [];
 
-        public IoTDevice(string mqttBroker, string restEndpoint, int port = 1883, HttpClient? httpClient = null, ILogger<IoTDevice>? logger = null)
+        public IoTDevice(string mqttBroker, string restEndpoint, int port = 1883, ILogger<IoTDevice>? logger = null)
         {
             // Initialize MQTT client and HTTP client
             _logger = logger ?? NullLogger<IoTDevice>.Instance;
@@ -84,7 +83,7 @@ namespace DisplayLogic.Services
             }
             finally
             {
-                _connectionLock.Release();
+                _ = _connectionLock.Release();
             }
         }
 
@@ -107,7 +106,7 @@ namespace DisplayLogic.Services
             }
             finally
             {
-                _connectionLock.Release();
+                _ = _connectionLock.Release();
             }
         }
 
@@ -127,9 +126,9 @@ namespace DisplayLogic.Services
                 .Build();
 
             _logger.LogInformation($"Sending payload: {topic}, {payload}");
-            await _mqttClient.PublishAsync(message, CancellationToken.None);
-            _logger.LogInformation("Payload sent to MQTT.");          
-            
+            _ = await _mqttClient.PublishAsync(message, CancellationToken.None);
+            _logger.LogInformation("Payload sent to MQTT.");
+
         }
 
         public async Task PublishWithFallbackAsync(string topic, string payload)
@@ -194,7 +193,7 @@ namespace DisplayLogic.Services
             // Added try catch block for logging purposes
             try
             {
-                await _mqttClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic(topic).Build());
+                _ = await _mqttClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic(topic).Build());
             }
             catch (Exception ex)
             {
@@ -216,7 +215,7 @@ namespace DisplayLogic.Services
                         _ = tcs.TrySetResult(msg);
                     };
                     _logger.LogInformation($"Subscribing to topic {topic} via MQTT.");
-                    await _mqttClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic(topic).Build());
+                    _ = await _mqttClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic(topic).Build());
                     return await tcs.Task;
                 });
             }
@@ -238,7 +237,7 @@ namespace DisplayLogic.Services
         {
 
             _subscriptionCallbacks[topic] = callback;
-            await _mqttClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic(topic).Build());
+            _ = await _mqttClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic(topic).Build());
             System.Diagnostics.Debug.WriteLine($"Subscribed to MQTT topic: {topic}");
         }
 
