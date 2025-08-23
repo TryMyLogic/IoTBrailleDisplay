@@ -75,15 +75,16 @@ public partial class DeviceControlPage : ContentPage, IQueryAttributable
                              _device.model?.Contains("Shelly 1PM", StringComparison.OrdinalIgnoreCase) == true;
 
         LeftPane.Children.Add(BuildPowerButton());
-        RightPane.Children.Add(BuildBrightnessSlider());
+        RightPane.Children.Add(BuildControlSlider(isShellySwitch));
+        //RightPane.Children.Add(BuildTempDial());
 
         if (isShellySwitch)
         {
-            RightPane.Children.Add(DeviceControlPage.BuildGenericInfo());
+            RightPane.Children.Add(BuildGenericInfo());
         }
         else
         {
-            RightPane.Children.Add(DeviceControlPage.BuildGenericInfo());
+            RightPane.Children.Add(BuildGenericInfo());
         }
 
         LoadingIndicator.IsRunning = true;
@@ -178,19 +179,56 @@ public partial class DeviceControlPage : ContentPage, IQueryAttributable
                     return;
                 }
 
-                string stateTopic = $"shellies/{deviceId}/relay/0";
-                string state = await _iotDevice.SubscribeAsync(stateTopic);
+                string powerTopic = $"shellies/{deviceId}/relay/0";
+                string brightnessTopic = $"shellies/{deviceId}/dimmer/brightness";
+                string tempTopic = $"shellies/{deviceId}/temp/set"; // Adjust based on your device
 
-                if (LeftPane.Children.OfType<Frame>().FirstOrDefault()?.Content is Image powerButton)
+                // Subscribe to power state persistently
+                await _iotDevice.SubscribePersistentAsync(powerTopic, state =>
                 {
-                    powerButton.Source = state == "on" ? "power_on_btn.png" : "power_off_btn.png";
-                    if (powerButton.Parent is Frame frame)
+                    MainThread.InvokeOnMainThreadAsync(() =>
                     {
-                        frame.BorderColor = state == "on" ? Color.FromRgb(166, 120, 226) : Color.FromRgb(255, 0, 0);
-                    }
-                }
+                        if (LeftPane.Children.OfType<Frame>().FirstOrDefault()?.Content is Image powerButton)
+                        {
+                            powerButton.Source = state == "on" ? "power_on_btn.png" : "power_off_btn.png";
+                            if (powerButton.Parent is Frame frame)
+                            {
+                                frame.BorderColor = state == "on" ? Color.FromRgb(166, 120, 226) : Color.FromRgb(255, 0, 0);
+                            }
+                        }
+                    });
+                });
 
-                System.Diagnostics.Debug.WriteLine($"Subscribed to MQTT topic: {stateTopic}, State: {state}");
+                // Subscribe to brightness persistently
+                await _iotDevice.SubscribePersistentAsync(brightnessTopic, brightness =>
+                {
+                    MainThread.InvokeOnMainThreadAsync(() =>
+                    {
+                        if (LeftPane.Children.OfType<VerticalStackLayout>().FirstOrDefault()?.Children.OfType<Slider>().FirstOrDefault() is Slider slider &&
+                            LeftPane.Children.OfType<VerticalStackLayout>().FirstOrDefault()?.Children.OfType<Label>().FirstOrDefault() is Label label)
+                        {
+                            if (int.TryParse(brightness, out int value))
+                            {
+                                slider.Value = value;
+                                label.Text = $"Brightness: {value}%";
+                            }
+                        }
+                    });
+                });
+
+                // Subscribe to temperature persistently
+                await _iotDevice.SubscribePersistentAsync(tempTopic, temp =>
+                {
+                    MainThread.InvokeOnMainThreadAsync(() =>
+                    {
+                        if (RightPane.Children.OfType<VerticalStackLayout>().FirstOrDefault()?.Children.OfType<Frame>().FirstOrDefault()?.Content is Label tempLabel &&
+                            int.TryParse(temp, out int value))
+                        {
+                            tempLabel.Text = $"{value}°";
+                        }
+                    });
+                });
+
                 LoadingIndicator.IsRunning = false;
                 LoadingIndicator.IsVisible = false;
                 return;
@@ -198,13 +236,13 @@ public partial class DeviceControlPage : ContentPage, IQueryAttributable
             catch (MqttClientNotConnectedException ex)
             {
                 System.Diagnostics.Debug.WriteLine($"MQTT subscribe error (attempt {attempt + 1}/{maxRetries}): {ex.Message}");
-                if (attempt == maxRetries - 1) // Only show alert on last failure
+                if (attempt == maxRetries - 1)
                 {
                     await DisplayAlert("Error", $"Failed to subscribe to device state after {maxRetries} attempts: {ex.Message}", "OK");
                 }
                 if (attempt < maxRetries - 1)
                 {
-                    await Task.Delay(delayMs); // Wait before retrying
+                    await Task.Delay(delayMs);
                 }
             }
             catch (Exception ex)
@@ -216,13 +254,16 @@ public partial class DeviceControlPage : ContentPage, IQueryAttributable
                 return;
             }
         }
+
+        LoadingIndicator.IsRunning = false;
+        LoadingIndicator.IsVisible = false;
     }
 
-    private VerticalStackLayout BuildBrightnessSlider()
+    private VerticalStackLayout BuildControlSlider(bool isShellySwitch)
     {
-        var label = new Label
+        var infoLabel = new Label
         {
-            Text = "Brightness",
+            Text = isShellySwitch ? "Brightness" : "--",
             TextColor = Color.FromRgb(166, 120, 226),
             HorizontalOptions = LayoutOptions.Center
         };
@@ -236,7 +277,7 @@ public partial class DeviceControlPage : ContentPage, IQueryAttributable
         };
         slider.ValueChanged += async (_, e) =>
         {
-            label.Text = $"Brightness: {e.NewValue:0}%";
+            infoLabel.Text = isShellySwitch ? $"Brightness: {e.NewValue:0}%" : $"{e.NewValue:0}°";
             try
             {
                 string deviceId = _device?.identifiers?.FirstOrDefault()?[1] ?? string.Empty;
@@ -246,7 +287,7 @@ public partial class DeviceControlPage : ContentPage, IQueryAttributable
                     return;
                 }
 
-                string topic = $"shellies/{deviceId}/dimmer/brightness";
+                string topic = isShellySwitch ? $"shellies/{deviceId}/dimmer/brightness" : $"shellies/{deviceId}/temp/set";
                 string payload = ((int)e.NewValue).ToString();
                 await EnsureConnectedAndPublishAsync(topic, payload);
 
@@ -254,89 +295,23 @@ public partial class DeviceControlPage : ContentPage, IQueryAttributable
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"MQTT brightness publish error: {ex.Message}");
-                await DisplayAlert("Error", $"Failed to set brightness: {ex.Message}", "OK");
+                System.Diagnostics.Debug.WriteLine($"MQTT control publish error: {ex.Message}");
+                await DisplayAlert("Error", $"Failed to set control value: {ex.Message}", "OK");
             }
         };
 
         return new VerticalStackLayout
         {
             HorizontalOptions = LayoutOptions.Center,
-            Children = { label, slider }
+            Children = { infoLabel, slider }
         };
-    }
-
-    private static VerticalStackLayout BuildTempDial()
-    {
-        var dial = new Frame
-        {
-            BackgroundColor = Color.FromRgb(38, 37, 57), // #262539
-            CornerRadius = 100,
-            HeightRequest = 160,
-            WidthRequest = 160,
-            HasShadow = true,
-            Content = new Label
-            {
-                Text = "20°",
-                FontAttributes = FontAttributes.Bold,
-                FontSize = 22,
-                TextColor = Color.FromRgb(166, 120, 226),
-                HorizontalOptions = LayoutOptions.Center,
-                VerticalOptions = LayoutOptions.Center
-            }
-        };
-
-        var minus = new Label { Text = "–", FontSize = 28, TextColor = dial.BorderColor };
-        var plus = new Label { Text = "+", FontSize = 28, TextColor = dial.BorderColor };
-
-        // Simple tap gestures for demo purposes
-        minus.GestureRecognizers.Add(new TapGestureRecognizer
-        {
-            Command = new Command(() =>
-            {
-                DeviceControlPage.ChangeTemp(dial, -1);
-            })
-        });
-        plus.GestureRecognizers.Add(new TapGestureRecognizer
-        {
-            Command = new Command(() =>
-            {
-                DeviceControlPage.ChangeTemp(dial, +1);
-            })
-        });
-
-        return new VerticalStackLayout
-        {
-            HorizontalOptions = LayoutOptions.Center,
-            Spacing = 20,
-            Children =
-            {
-                dial,
-                new HorizontalStackLayout
-                {
-                    HorizontalOptions = LayoutOptions.Center,
-                    Spacing = 40,
-                    Children = { minus, new Label { Text="Auto", TextColor=dial.BorderColor }, plus }
-                }
-            }
-        };
-    }
-
-    private static void ChangeTemp(Frame dial, int delta)
-    {
-        if (dial.Content is Label lbl &&
-            int.TryParse(lbl.Text.Replace("°", ""), out int t))
-        {
-            t = Math.Clamp(t + delta, 10, 30);
-            lbl.Text = $"{t}°";
-        }
-    }
+    }   
 
     private static Label BuildGenericInfo()
     {
         return new Label
         {
-            Text = "No special controls available.",
+            Text = "No special controls available",
             FontSize = 16,
             TextColor = Colors.White,
             HorizontalOptions = LayoutOptions.Center
