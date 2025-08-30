@@ -47,7 +47,10 @@ namespace DisplayApp.Platforms.Windows
                 }
 
                 RfcommDeviceServicesResult rfcommDeviceServices = await _device.GetRfcommServicesAsync();
-                RfcommDeviceService? service = rfcommDeviceServices.Services.FirstOrDefault(s => s.ServiceId.Uuid == PiUuid);
+                RfcommDeviceService? service = rfcommDeviceServices.Services.FirstOrDefault(s =>
+                {
+                    return s.ServiceId.Uuid == PiUuid;
+                });
                 if (service == null)
                 {
                     _logger?.LogWarning("No matching Rfcomm service found.");
@@ -82,8 +85,8 @@ namespace DisplayApp.Platforms.Windows
                     throw new InvalidOperationException("Bluetooth writer not initialized");
                 byte[] data = Encoding.UTF8.GetBytes(text);
                 _writer.WriteBytes(data);
-                await _writer.StoreAsync();
-                await _writer.FlushAsync();
+                _ = await _writer.StoreAsync();
+                _ = await _writer.FlushAsync();
                 _logger?.LogInformation($"Sending text via Bluetooth: {text}");
             }
             catch (Exception ex)
@@ -117,8 +120,8 @@ namespace DisplayApp.Platforms.Windows
         {
             try
             {
-                _writer?.DetachStream();
-                _reader?.DetachStream();
+                _ = (_writer?.DetachStream());
+                _ = (_reader?.DetachStream());
 
                 _writer?.Dispose();
                 _reader?.Dispose();

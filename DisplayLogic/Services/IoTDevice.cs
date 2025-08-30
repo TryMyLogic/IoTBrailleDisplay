@@ -20,13 +20,21 @@ namespace DisplayLogic.Services
         private readonly SemaphoreSlim _connectionLock = new(1, 1);
         private readonly Dictionary<string, Action<string>> _subscriptionCallbacks = [];
 
-        public IoTDevice(string mqttBroker, string restEndpoint, int port = 1883, ILogger<IoTDevice>? logger = null)
+        public IoTDevice(
+            string mqttBroker,
+            string restEndpoint,
+            int port = 1883,
+            HttpClient? httpClient = null,
+            MqttClientFactory? mqttClientFactory = null,
+            IMqttClient? mqttClient = null,
+            ILogger<IoTDevice>? logger = null
+            )
         {
             // Initialize MQTT client and HTTP client
             _logger = logger ?? NullLogger<IoTDevice>.Instance;
-            _mqttFactory = new MqttClientFactory();
-            _mqttClient = _mqttFactory.CreateMqttClient();
-            _httpClient = new HttpClient();
+            _mqttFactory = mqttClientFactory ?? new MqttClientFactory();
+            _mqttClient = mqttClient ?? _mqttFactory.CreateMqttClient();
+            _httpClient = httpClient ?? new HttpClient();
             _mqttBroker = mqttBroker ?? throw new ArgumentNullException(nameof(mqttBroker));
             _mqttPort = port;
             _restEndpoint = restEndpoint ?? throw new ArgumentNullException(nameof(restEndpoint));
@@ -124,8 +132,7 @@ namespace DisplayLogic.Services
                 .WithPayload(payload)
                 .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
                 .Build();
-
-            _logger.LogInformation($"Sending payload: {topic}, {payload}");
+            _logger.LogInformation("Sending payload: {topic}, {payload}", topic, payload);
             _ = await _mqttClient.PublishAsync(message, CancellationToken.None);
             _logger.LogInformation("Payload sent to MQTT.");
 
@@ -136,17 +143,17 @@ namespace DisplayLogic.Services
             if (_mqttClient.IsConnected)
             {
                 await PublishAsync(topic, payload);
-                _logger.LogInformation($"Subscribing via MQTT. Topic: {topic}, Payload: {payload}");
+                _logger.LogInformation("Subscribing via MQTT. Topic: {topic}, Payload: {payload}", topic, payload);
             }
             else
             {
                 string restUrl = MapTopicToEndpoint(topic);
                 StringContent content = new(payload, Encoding.UTF8, "application/json");
                 HttpResponseMessage response = await _httpClient.PostAsync(restUrl, content);
-                _logger.LogInformation($"MQTT disconnected, subscribing via REST fallback. RESTUrl: {restUrl}, Content: {content}.");
+                _logger.LogInformation("MQTT disconnected, subscribing via REST fallback. RESTUrl: {restUrl}, Content: {content}.", restUrl, content);
                 if (!response.IsSuccessStatusCode)
                 {
-                    _logger.LogError($"REST publish failed.  Status: {response.StatusCode}");
+                    _logger.LogError("REST publish failed.  Status: {StatusCode}", response.StatusCode);
                     throw new Exception($"REST publish failed. Status: {response.StatusCode}");
                 }
             }
@@ -155,7 +162,7 @@ namespace DisplayLogic.Services
         // Subscribe to an MQTT topic and return the first message received
         public async Task<string> SubscribeAsync(string topic)
         {
-            _logger.LogInformation($"Attempting Subscription to MQTT topic: {topic}");
+            _logger.LogInformation("Attempting Subscription to MQTT topic: {topic}", topic);
             TaskCompletionSource<string> tcs = new();
 
             // Register a handler to process received messages
@@ -171,7 +178,7 @@ namespace DisplayLogic.Services
                     // Convert the payload to a byte array
                     if (payload.IsEmpty)
                     {
-                        _logger.LogDebug($"Received empty payload on topic: {topic}");
+                        _logger.LogDebug("Received empty payload on topic: {topic}", topic);
                         bytes = [];
                     }
                     else if (payload.IsSingleSegment)
@@ -185,7 +192,7 @@ namespace DisplayLogic.Services
 
                     // Decode the byte array to a UTF-8 string
                     string msg = Encoding.UTF8.GetString(bytes);
-                    _logger.LogDebug($"Received message on topic {topic}: {msg}");
+                    _logger.LogDebug("Received message on topic {topic}: {msg}", topic, msg);
                     _ = tcs.TrySetResult(msg);
                 }
                 return Task.CompletedTask;
@@ -197,7 +204,7 @@ namespace DisplayLogic.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Failed to subscribe to topic {topic}.");
+                _logger.LogError(ex, "Failed to subscribe to topic {topic}.", topic);
                 throw;
             }
             return await tcs.Task;
@@ -223,10 +230,10 @@ namespace DisplayLogic.Services
             {
                 string restUrl = MapTopicToEndpoint(topic);
                 HttpResponseMessage response = await _httpClient.GetAsync(restUrl);
-                _logger.LogInformation($"Subscribing to topic {restUrl} via REST fallback.");
+                _logger.LogInformation("Subscribing to topic {restUrl} via REST fallback.", restUrl);
                 if (!response.IsSuccessStatusCode)
                 {
-                    _logger.LogError($"REST subscribe failed. Status: {response.StatusCode}");
+                    _logger.LogError("REST subscribe failed. Status: {StatusCode}", response.StatusCode);
                     throw new Exception($"REST subscribe failed. Status: {response.StatusCode}");
                 }
                 return await response.Content.ReadAsStringAsync();
