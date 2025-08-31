@@ -8,10 +8,6 @@
              xmlns:views="clr-namespace:DisplayApp.Views">
 
     <Grid ColumnDefinitions="Auto,*">
-        <!-- Sidebar Navigation -->
-        <views:CustomNavBar Grid.Column="0"
-                            VerticalOptions="Fill"
-                            HorizontalOptions="Start"/>
 
         <!-- Main Content -->
         <ScrollView Grid.Column="1">

@@ -9,11 +9,6 @@
 
     <Grid ColumnDefinitions="80,*" RowDefinitions="Auto,*">
 
-        <!-- Sidebar Navigation -->
-        <views:CustomNavBar Grid.Column="0" Grid.RowSpan="2"
-            VerticalOptions="Fill"
-            HorizontalOptions="Start"/>
-
         <VerticalStackLayout Padding="20" Spacing="10" Grid.Column="1">
 
             <!-- Device name centered at top -->

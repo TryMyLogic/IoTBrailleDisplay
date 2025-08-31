@@ -126,7 +126,7 @@ namespace DisplayLogic.Services
             {
                 _logger.LogWarning("MQTT client is not connected.");
                 throw new InvalidOperationException("MQTT client is not connected.");
-            }   
+            }
 
             MqttApplicationMessage message = new MqttApplicationMessageBuilder()
                 .WithTopic(topic)

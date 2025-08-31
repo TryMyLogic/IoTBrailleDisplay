@@ -6,10 +6,6 @@
              BackgroundColor="#302F3F"
              xmlns:views="clr-namespace:DisplayApp.Views">
     <Grid ColumnDefinitions="Auto,*">
-        <!-- Sidebar Navigation -->
-        <views:CustomNavBar Grid.Column="0"
-                    VerticalOptions="Fill"
-                    HorizontalOptions="Start"/>
         <VerticalStackLayout Padding="20" Spacing="10" Grid.Column="1">
             <Label x:Name="RoomNameLabel"
                FontSize="22"

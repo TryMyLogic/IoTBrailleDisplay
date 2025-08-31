@@ -52,7 +52,7 @@ namespace DisplayLogic.Tests.Services.IoTDeviceTests
 
             // Assert
             Assert.True(!device.IsConnected); // Initially false until ConnectAsync is called
-                                             // SharedFunctions.AssertSingleLogEvent(_memorySink, LogEventLevel.Debug, $"Device instance created. Broker: {TestBroker}. REST endpoint: {TestRestEndpoint}. Port: {TestPort}");
+                                              // SharedFunctions.AssertSingleLogEvent(_memorySink, LogEventLevel.Debug, $"Device instance created. Broker: {TestBroker}. REST endpoint: {TestRestEndpoint}. Port: {TestPort}");
             Assert.NotNull(device);
         }
 
