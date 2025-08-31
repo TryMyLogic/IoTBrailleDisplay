@@ -38,7 +38,7 @@ namespace DisplayLogic.Services
             _mqttBroker = mqttBroker ?? throw new ArgumentNullException(nameof(mqttBroker));
             _mqttPort = port;
             _restEndpoint = restEndpoint ?? throw new ArgumentNullException(nameof(restEndpoint));
-            IsConnected = false; // Only false when rest is connected
+            IsConnected = false; //Set to false to prevent assumption that device is connected until ConnectAsync is called
 
             _mqttOptions = new MqttClientOptionsBuilder()
            .WithTcpServer(_mqttBroker, _mqttPort)
@@ -124,8 +124,9 @@ namespace DisplayLogic.Services
             // Ensure client is connected before attempting to publish
             if (!_mqttClient.IsConnected)
             {
+                _logger.LogWarning("MQTT client is not connected.");
                 throw new InvalidOperationException("MQTT client is not connected.");
-            }
+            }   
 
             MqttApplicationMessage message = new MqttApplicationMessageBuilder()
                 .WithTopic(topic)
