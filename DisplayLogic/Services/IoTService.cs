@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using DisplayLogic.Services.IoTCommand;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DisplayLogic.Services
@@ -73,7 +74,7 @@ namespace DisplayLogic.Services
         /// Publishes <paramref name="command"/> to its request topic, subscribes to its response topic, processes the response, and sends string results to <see cref="IBrailleDisplay"/> if available. 
         /// Logs via <see cref="ILogger{T}"/>. Requires a connected <see cref="IIoTDevice"/>. 
         /// </remarks>
-        private async Task ExecuteCommandAsync(IoTCommand command)
+        private async Task ExecuteCommandAsync(IIoTCommand command)
         {
             _logger.LogInformation("Executing IoT command. Request topic:{RequestTopic}, Response Topic: {ResponseTopic}", command.RequestTopic, command.ResponseTopic);
             // View existing state
