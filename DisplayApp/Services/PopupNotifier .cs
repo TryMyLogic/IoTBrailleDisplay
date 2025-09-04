@@ -5,11 +5,12 @@ using System.Text;
 using System.Threading.Tasks;
 using DisplayLogic.SharedInterfaces;
 
+
 namespace DisplayApp.Services
 {
     public class PopupNotifier : IUserNotifier
     {
-        public async Task NotifyAsync(string message, string title)
+        public async Task NotifyAsync(string title, string message)
         {
             if (Application.Current.MainPage == null)
             {
@@ -41,7 +42,7 @@ namespace DisplayApp.Services
             await Application.Current.MainPage.Navigation.PushModalAsync(overlay, false);
 
             // Auto-hide
-            await Task.Delay(3000);
+            await Task.Delay(2000);
             _ = await Application.Current.MainPage.Navigation.PopModalAsync(false);
         }
     }

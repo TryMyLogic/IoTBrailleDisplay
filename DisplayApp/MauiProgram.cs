@@ -2,6 +2,7 @@
 using DisplayApp.Views;
 using DisplayLogic.Services;
 using DisplayLogic.SharedInterfaces;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace DisplayApp
@@ -20,7 +21,8 @@ namespace DisplayApp
                 });
 
             // Register services
-            builder.Services.AddSingleton<IUserNotifier, ConsoleUserNotifier>(); // Simple notifier for now (logs to console/output)
+            //builder.Services.AddTransient<IUserINotifier, PopupNotifier>(); // Simple notifier for now (logs to console/output)
+            builder.Services.AddTransient<IUserNotifier, PopupNotifier>();
             builder.Services.AddSingleton<ILoadingService, LoadingService>();
             builder.Services.AddSingleton<IWebSocketClient>(sp =>
             {
@@ -53,7 +55,7 @@ namespace DisplayApp
                 });
                 return iotDevice;
             });
-            builder.Services.AddSingleton<DisplayApp.ViewModels.MainPageViewModel>(); // Your VM
+            builder.Services.AddSingleton<DisplayApp.ViewModels.MainPageViewModel>();
             builder.Services.AddSingleton<MainPage>();
             builder.Services.AddTransient<DeviceControlPage>();
 
@@ -73,4 +75,6 @@ namespace DisplayApp
             await Task.CompletedTask;
         }
     }
+
+
 }

@@ -95,6 +95,7 @@ public class MainPageViewModel
         if (!_haClient.IsConnected)
         {
             await _haClient.ConnectAsync();
+            await _notifier.NotifyAsync("Connected to Home Assistant WebSocket", "Success");
             System.Diagnostics.Debug.WriteLine("Connected to Home Assistant WebSocket");
         }
 

@@ -2,6 +2,7 @@
 using DisplayApp.Services;
 using DisplayLogic.Models;
 using DisplayLogic.Services;
+using DisplayLogic.SharedInterfaces;
 using MQTTnet.Exceptions;
 
 namespace DisplayApp.Views;
@@ -12,6 +13,7 @@ public partial class DeviceControlPage : ContentPage, IQueryAttributable
     private readonly IoTDevice _iotDevice;
     private MqttDevice _device;
     private readonly ILoadingService _loadingService;
+    private readonly IUserNotifier _notifier;
 
 
     // Map 'device' query parameter to Device property
@@ -26,11 +28,12 @@ public partial class DeviceControlPage : ContentPage, IQueryAttributable
         }
     }
 
-    public DeviceControlPage(IoTDevice iotDevice, ILoadingService loadingService)
+    public DeviceControlPage(IoTDevice iotDevice, ILoadingService loadingService, IUserNotifier notifier)
     {
         InitializeComponent();
         _iotDevice = iotDevice ?? throw new ArgumentNullException(nameof(iotDevice));
         _loadingService = loadingService ?? throw new ArgumentNullException(nameof(loadingService));
+        _notifier = notifier ?? throw new ArgumentNullException(nameof(notifier));
         if (_device != null) // Handle case where device is set before constructor finishes
         {
             LoadDevice();
@@ -343,5 +346,6 @@ public partial class DeviceControlPage : ContentPage, IQueryAttributable
     {
         Debug.WriteLine("Back button clicked");
         await Shell.Current.GoToAsync("..");
+        //await _notifier.NotifyAsync("Navigation", "Returned to previous page");
     }
 }

@@ -124,7 +124,8 @@ namespace DisplayLogic.Services
         private async Task LogAsync(string message)
         {
             _logger.LogInformation("WebSocket Payload: {message}", message);
-            await _notifier.NotifyAsync("WebSocket Payload", message);
+            //await _notifier.NotifyAsync("WebSocket Payload", message);
+            await Task.CompletedTask;
         }
     }
 }
