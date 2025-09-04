@@ -1,8 +1,11 @@
 ﻿using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Windows.Input;
+using DisplayApp.Services;
 using DisplayApp.Views;
 using DisplayLogic.Models;
 using DisplayLogic.Services;
+using DisplayLogic.SharedInterfaces;
 
 namespace DisplayApp.ViewModels;
 
@@ -13,10 +16,15 @@ public class MainPageViewModel
     public ICommand OpenAreaCommand { get; }
     private readonly HomeAssistantWebSocketClient _haClient;
     private bool _isDataLoaded;
+    private readonly ILoadingService _loadingService;
+    private readonly IUserNotifier _notifier;
 
-    public MainPageViewModel(HomeAssistantWebSocketClient haClient)
+
+    public MainPageViewModel(HomeAssistantWebSocketClient haClient, ILoadingService loadingService, IUserNotifier notifier)
     {
         _haClient = haClient;
+        _loadingService = loadingService;
+        _notifier = notifier;
         OpenAreaCommand = new Command<Area>(
                async (area) =>
                {
@@ -45,16 +53,40 @@ public class MainPageViewModel
 
         try
         {
+            // Show loading
+            await _loadingService.ShowAsync("Loading data...");
+
+            //Use a cancellation token with timeout for safety
+            //using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            await Task.Delay(3000);
             await LoadRealDataAsync();
+
             _isDataLoaded = true;
             ((Command)OpenAreaCommand).ChangeCanExecute();
+
+            await _notifier.NotifyAsync("Data loaded successfully!", "Info");
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
         {
-            System.Diagnostics.Debug.WriteLine($"Error loading real data: {ex.Message}");
+            Debug.WriteLine("WebSocket connection timed out. Loading mock data.");
             LoadMockData();
             _isDataLoaded = true;
             ((Command)OpenAreaCommand).ChangeCanExecute();
+
+            await _notifier.NotifyAsync("Could not load live data. Using mock data.", "Warning");
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error loading real data: {ex.Message}");
+            LoadMockData();
+            _isDataLoaded = true;
+            ((Command)OpenAreaCommand).ChangeCanExecute();
+
+            await _notifier.NotifyAsync("Error loading live data. Using mock data.", "Error");
+        }
+        finally
+        {
+            await _loadingService.HideAsync();
         }
     }
 
@@ -102,14 +134,21 @@ public class MainPageViewModel
             return;
         }
 
-        // Always grab the most up-to-date devices from the client
-        List<MqttDevice> devicesCopy = _haClient.Devices ?? [];
+        try
+        {
+            // Grab the latest devices
+            List<MqttDevice> devicesCopy = _haClient.Devices ?? [];
 
-        await Shell.Current.GoToAsync(nameof(DevicesPage), true, new Dictionary<string, object>
-            {
-                { "area", area },
-                { "devices", devicesCopy }
-            });
+            await Shell.Current.GoToAsync(nameof(DevicesPage), true, new Dictionary<string, object>
+        {
+            { "area", area },
+            { "devices", devicesCopy }
+        });
+        }
+        catch (Exception ex)
+        {
+            await _notifier.NotifyAsync("Navigation error", ex.Message);
+        }
     }
 
     private void LoadMockData()

@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using DisplayApp.Services;
 using DisplayLogic.Models;
 using DisplayLogic.Services;
 using MQTTnet.Exceptions;
@@ -10,6 +11,7 @@ public partial class DeviceControlPage : ContentPage, IQueryAttributable
 {
     private readonly IoTDevice _iotDevice;
     private MqttDevice _device;
+    private readonly ILoadingService _loadingService;
 
 
     // Map 'device' query parameter to Device property
@@ -24,10 +26,11 @@ public partial class DeviceControlPage : ContentPage, IQueryAttributable
         }
     }
 
-    public DeviceControlPage(IoTDevice iotDevice)
+    public DeviceControlPage(IoTDevice iotDevice, ILoadingService loadingService)
     {
         InitializeComponent();
         _iotDevice = iotDevice ?? throw new ArgumentNullException(nameof(iotDevice));
+        _loadingService = loadingService ?? throw new ArgumentNullException(nameof(loadingService));
         if (_device != null) // Handle case where device is set before constructor finishes
         {
             LoadDevice();
@@ -41,8 +44,19 @@ public partial class DeviceControlPage : ContentPage, IQueryAttributable
         {
             if (query.TryGetValue("device", out object? deviceObj) && deviceObj is MqttDevice device)
             {
+                await _loadingService.ShowAsync("Opening device...");
                 _device = device;
-                LoadDevice();
+                try
+                {
+                    
+                    LoadDevice();
+                }
+                finally
+                {
+                    await _loadingService.HideAsync();
+                }
+
+
                 await SubscribeToDeviceStateAsync();
             }
             else

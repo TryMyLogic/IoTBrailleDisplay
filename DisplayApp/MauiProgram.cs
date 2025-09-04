@@ -1,4 +1,5 @@
-﻿using DisplayApp.Views;
+﻿using DisplayApp.Services;
+using DisplayApp.Views;
 using DisplayLogic.Services;
 using DisplayLogic.SharedInterfaces;
 using Microsoft.Extensions.Logging;
@@ -20,6 +21,7 @@ namespace DisplayApp
 
             // Register services
             builder.Services.AddSingleton<IUserNotifier, ConsoleUserNotifier>(); // Simple notifier for now (logs to console/output)
+            builder.Services.AddSingleton<ILoadingService, LoadingService>();
             builder.Services.AddSingleton<IWebSocketClient>(sp =>
             {
                 return new WebSocketClient("ws://localhost:8123/api/websocket", sp.GetRequiredService<IUserNotifier>());
@@ -61,9 +63,8 @@ namespace DisplayApp
 
             return builder.Build();
         }
-    }
 
-    // Simple notifier implementation (add to a new file or here)
+    }
     public class ConsoleUserNotifier : DisplayLogic.SharedInterfaces.IUserNotifier
     {
         public async Task NotifyAsync(string title, string message)
