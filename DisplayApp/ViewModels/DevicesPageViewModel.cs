@@ -1,5 +1,4 @@
 ﻿using System.Windows.Input;
-using DisplayApp.Services;
 using DisplayApp.Views;
 using DisplayLogic.Models;
 using DisplayLogic.SharedInterfaces;

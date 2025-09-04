@@ -3,7 +3,6 @@ using DisplayApp.Services;
 using DisplayApp.Views;
 using DisplayLogic.Services;
 using DisplayLogic.SharedInterfaces;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace DisplayApp
@@ -23,7 +22,6 @@ namespace DisplayApp
                 });
 
             // Register services
-            //builder.Services.AddTransient<IUserINotifier, PopupNotifier>(); // Simple notifier for now (logs to console/output)
             builder.Services.AddTransient<IUserNotifier, PopupNotifier>();
             builder.Services.AddSingleton<ILoadingService, LoadingService>();
             builder.Services.AddSingleton<IWebSocketClient>(sp =>
@@ -68,14 +66,6 @@ namespace DisplayApp
             return builder.Build();
         }
 
-    }
-    public class ConsoleUserNotifier : DisplayLogic.SharedInterfaces.IUserNotifier
-    {
-        public async Task NotifyAsync(string title, string message)
-        {
-            Console.WriteLine($"{title}: {message}");
-            await Task.CompletedTask;
-        }
     }
 
 

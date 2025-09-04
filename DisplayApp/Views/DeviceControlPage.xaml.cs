@@ -51,7 +51,7 @@ public partial class DeviceControlPage : ContentPage, IQueryAttributable
                 _device = device;
                 try
                 {
-                    
+
                     LoadDevice();
                 }
                 finally
