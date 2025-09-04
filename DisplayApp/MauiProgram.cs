@@ -1,4 +1,5 @@
-﻿using DisplayApp.Services;
+﻿using CommunityToolkit.Maui;
+using DisplayApp.Services;
 using DisplayApp.Views;
 using DisplayLogic.Services;
 using DisplayLogic.SharedInterfaces;
@@ -14,6 +15,7 @@ namespace DisplayApp
             MauiAppBuilder builder = MauiApp.CreateBuilder();
             builder
                 .UseMauiApp<App>()
+                .UseMauiCommunityToolkit()
                 .ConfigureFonts(fonts =>
                 {
                     fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");

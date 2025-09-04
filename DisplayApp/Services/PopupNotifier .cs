@@ -3,7 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using CommunityToolkit.Maui.Alerts;
+using CommunityToolkit.Maui.Core;
 using DisplayLogic.SharedInterfaces;
+using Microsoft.Maui;
+using Microsoft.Maui.Controls;
+using static System.Net.Mime.MediaTypeNames;
+
 
 
 namespace DisplayApp.Services
@@ -12,38 +18,11 @@ namespace DisplayApp.Services
     {
         public async Task NotifyAsync(string title, string message)
         {
-            if (Application.Current.MainPage == null)
-            {
-                return;
-            }
-
+            CancellationTokenSource cancellationTokenSource = new();
             string fullMessage = string.IsNullOrEmpty(title) ? message : $"{title}: {message}";
 
-            var overlay = new ContentPage
-            {
-                BackgroundColor = Color.FromArgb("#80000000"), // semi-transparent
-                Content = new Frame
-                {
-                    Padding = 20,
-                    CornerRadius = 10,
-                    BackgroundColor = Colors.Black,
-                    HorizontalOptions = LayoutOptions.Center,
-                    VerticalOptions = LayoutOptions.Center,
-                    Content = new Label
-                    {
-                        Text = fullMessage,
-                        TextColor = Colors.White,
-                        HorizontalTextAlignment = TextAlignment.Center
-                    }
-                }
-            };
-
-            // Show overlay
-            await Application.Current.MainPage.Navigation.PushModalAsync(overlay, false);
-
-            // Auto-hide
-            await Task.Delay(2000);
-            _ = await Application.Current.MainPage.Navigation.PopModalAsync(false);
+            IToast toast = Toast.Make(fullMessage, ToastDuration.Short, 14);
+            await toast.Show(cancellationTokenSource.Token);
         }
     }
 }
