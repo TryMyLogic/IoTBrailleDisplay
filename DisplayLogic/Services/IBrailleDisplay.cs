@@ -1,23 +1,40 @@
 ﻿namespace DisplayLogic.Services
 {
+    /// <summary>
+    /// Defines the contract for interacting with a braille display device.
+    /// </summary>
     public interface IBrailleDisplay
     {
-        // Indicates if the IoT device is connected
+        /// <summary>
+        /// Indicates if the IoT device is connected
+        /// </summary>
         bool IsConnected { get; }
 
-        // Establishes connection with braille display
+        /// <summary>
+        /// Establishes connection with braille display
+        /// </summary>
         Task ConnectAsync();
 
-        // Closes connection to the braille display
+        /// <summary>
+        /// Closes connection to the braille display
+        /// </summary>
         Task DisconnectAsync();
 
-        // Sends text to be displayed on braille display
+        /// <summary>
+        /// Sends text to be displayed on braille display
+        /// </summary>
+        /// <param name="text">Text to display on the device</param>
         Task SendTextAsync(string text);
 
-        // Receives text from the braille display to interact with IoT via MAUI app
+        /// <summary>
+        /// Receives text from the braille display to interact with IoT via MAUI app
+        /// </summary>
+        /// <returns> A <see cref="string"/>containing text received from device</returns>
         Task<string> ReceiveTextAsync();
 
-        // Used to alert other areas of code
+        /// <summary>
+        /// Used to alert other areas of code
+        /// </summary>
         event EventHandler? TextReceived;
     }
 }

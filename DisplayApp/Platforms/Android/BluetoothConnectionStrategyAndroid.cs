@@ -7,6 +7,10 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DisplayApp.Platforms.Android
 {
+    /// <summary>
+    /// Represents the Android-specific Bluetooth connection strategy for communicating
+    /// with the braille display device.
+    /// </summary>
     public class BluetoothConnectionStrategyAndroid : IConnectionStrategy
     {
         private BluetoothAdapter? _adapter;
@@ -14,11 +18,23 @@ namespace DisplayApp.Platforms.Android
 
         private static readonly Java.Util.UUID uuid = Java.Util.UUID.FromString("00001101-0000-1000-8000-00805F9B34FB")!;
         private readonly ILogger<BluetoothConnectionStrategyAndroid>? _logger = null;
+
+        ///<inheritdoc/>
         public bool IsConnected => _bluetoothSocket?.IsConnected ?? false;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="BluetoothConnectionStrategyAndroid"/> class.
+        /// </summary>
+        /// <param name="logger">Logger for diagnostic messages.</param>
         public BluetoothConnectionStrategyAndroid(ILogger<BluetoothConnectionStrategyAndroid>? logger = null)
         {
             _logger = logger ?? NullLogger<BluetoothConnectionStrategyAndroid>.Instance;
         }
+
+        /// <summary>
+        /// Ensures that the Bluetooth socket and its streams are valid and connected.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">Thrown if the socket or streams are invalid or disconnected.</exception>
         private void EnsureConnected()
         {
             if (_bluetoothSocket == null || !_bluetoothSocket.IsConnected || _bluetoothSocket.InputStream == null || _bluetoothSocket.OutputStream == null)
@@ -26,6 +42,8 @@ namespace DisplayApp.Platforms.Android
                 throw new InvalidOperationException("Bluetooth socket is not connected or has no valid stream.");
             }
         }
+
+        ///<inheritdoc/>
         public async Task<bool> ConnectAsync()
         {
             try
@@ -77,11 +95,12 @@ namespace DisplayApp.Platforms.Android
 
             catch (Exception ex)
             {
-                _logger?.LogError($"Android Bluetooth failed {ex.Message}");
+                _logger?.LogError("Android Bluetooth failed {Message}", ex.Message);
                 return false;
             }
         }
-        //for both send and receive, EnsureConnected will ensure that the passed values are not null for _bluetoothSocket and Input- and Output stream
+
+        ///<inheritdoc/>
         public async Task SendTextAsync(string text)
         {
             try
@@ -98,6 +117,7 @@ namespace DisplayApp.Platforms.Android
             }
         }
 
+        ///<inheritdoc/>
         public async Task<string> ReceiveTextAsync()
         {
             try
@@ -115,6 +135,7 @@ namespace DisplayApp.Platforms.Android
             }
         }
 
+        ///<inheritdoc/>
         public Task<bool> DisconnectAsync()
         {
             try

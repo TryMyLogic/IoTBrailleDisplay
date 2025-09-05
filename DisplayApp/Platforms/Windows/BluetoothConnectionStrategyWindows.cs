@@ -10,6 +10,10 @@ using Windows.Storage.Streams;
 
 namespace DisplayApp.Platforms.Windows
 {
+    /// <summary>
+    /// Represents the Windows-specific Bluetooth connection strategy for communicating
+    /// with the braille display device.
+    /// </summary>
     public class BluetoothConnectionStrategyWindows : IConnectionStrategy
     {
         private BluetoothDevice? _device;
@@ -20,11 +24,20 @@ namespace DisplayApp.Platforms.Windows
 
         private bool _isConnected = false;
         private readonly ILogger<BluetoothConnectionStrategyWindows> _logger;
+
+        /// <inheritdoc/>
         public bool IsConnected => _isConnected && _device != null && _socket != null && _writer != null && _reader != null;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="BluetoothConnectionStrategyWindows"/> class.
+        /// </summary>
+        /// <param name="logger">Logger for diagnostic messages.</param>
         public BluetoothConnectionStrategyWindows(ILogger<BluetoothConnectionStrategyWindows>? logger = null)
         {
             _logger = logger ?? NullLogger<BluetoothConnectionStrategyWindows>.Instance;
         }
+
+        ///<inheritdoc/>
         public async Task<bool> ConnectAsync()
         {
             try
@@ -77,6 +90,8 @@ namespace DisplayApp.Platforms.Windows
                 return false;
             }
         }
+
+        ///<inheritdoc/>
         public async Task SendTextAsync(string text)
         {
             try
@@ -87,7 +102,7 @@ namespace DisplayApp.Platforms.Windows
                 _writer.WriteBytes(data);
                 _ = await _writer.StoreAsync();
                 _ = await _writer.FlushAsync();
-                _logger?.LogInformation($"Sending text via Bluetooth: {text}");
+                _logger?.LogInformation("Sending text via Bluetooth: {Text}", text);
             }
             catch (Exception ex)
             {
@@ -95,6 +110,8 @@ namespace DisplayApp.Platforms.Windows
                 throw;
             }
         }
+
+        ///<inheritdoc/>
         public async Task<string> ReceiveTextAsync()
         {
             try
@@ -106,7 +123,7 @@ namespace DisplayApp.Platforms.Windows
                 byte[] buffer = new byte[bytesRead];
                 _reader.ReadBytes(buffer);
                 string received = Encoding.UTF8.GetString(buffer);
-                _logger?.LogInformation($"Received text via Bluetooth: {received}");
+                _logger?.LogInformation("Received text via Bluetooth: {Received}", received);
                 return received;
             }
             catch (Exception ex)
@@ -116,6 +133,8 @@ namespace DisplayApp.Platforms.Windows
 
             }
         }
+
+        ///<inheritdoc/>
         public Task<bool> DisconnectAsync()
         {
             try
