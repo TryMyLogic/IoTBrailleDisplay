@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using DisplayApp.Services;
+using DisplayApp.ViewModels;
 using DisplayApp.Views;
 using DisplayLogic.Services;
 using DisplayLogic.SharedInterfaces;
@@ -62,9 +63,11 @@ namespace DisplayApp
             // Global UI Related Services
             services.AddTransient<IUserNotifier, PopupNotifier>();
             services.AddSingleton<ILoadingService, LoadingService>();
-            services.AddSingleton<ViewModels.MainPageViewModel>();
+            services.AddSingleton<MainPageViewModel>();
             services.AddSingleton<MainPage>();
             services.AddTransient<DeviceControlPage>();
+            services.AddTransient<DevicesPageViewModel>();
+            services.AddTransient<DevicesPage>();
 
             // Global Logic Related Services
             services.AddSingleton<IWebSocketClient>(sp =>
@@ -84,7 +87,7 @@ namespace DisplayApp
                     sp.GetRequiredService<ILogger<HomeAssistantWebSocketClient>>()
                     );
             });
-            services.AddSingleton<IoTDevice>(sp =>
+            services.AddSingleton<IIoTDevice>(sp =>
             {
                 ILogger<IoTDevice> logger = sp.GetRequiredService<ILogger<IoTDevice>>();
                 IoTDevice iotDevice = new(mqttBroker: mqttBrokerDomain, restEndpoint: "");

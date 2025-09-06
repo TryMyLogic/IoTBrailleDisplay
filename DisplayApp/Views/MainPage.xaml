@@ -6,61 +6,56 @@
              Title="IoTBraille Display Home"
              BackgroundColor="#302F3F"
              xmlns:views="clr-namespace:DisplayApp.Views">
+    <!-- Main Content -->
+    <ScrollView>
+        <VerticalStackLayout Spacing="30" HorizontalOptions="Center">
 
-    <Grid ColumnDefinitions="Auto,*">
-
-        <!-- Main Content -->
-        <ScrollView Grid.Column="1">
-            <VerticalStackLayout Padding="40,40,40,20" Spacing="30" HorizontalOptions="Center">
-
-                <!-- Page Title -->
-                <Label Text="Home Sweet Home"
+            <!-- Page Title -->
+            <Label Text="Home Sweet Home"
                        FontSize="28"
                        FontAttributes="Bold"
                        TextColor="White"
                        HorizontalOptions="Center" />
 
-                <!-- Rooms Section -->
-                <Label Text="Rooms"
+            <!-- Rooms Section -->
+            <Label Text="Rooms"
                        TextColor="#A678E2"
                        FontSize="20"
                        FontAttributes="Bold"
                        HorizontalOptions="Center" />
 
-                <CollectionView ItemsSource="{Binding Areas}"
+            <CollectionView ItemsSource="{Binding Areas}"
                                 SelectionMode="None"
-                                HorizontalOptions="Center"
-                                WidthRequest="500">
-                    <CollectionView.ItemsLayout>
-                        <GridItemsLayout Orientation="Vertical" Span="2"
+                                HorizontalOptions="Center">
+                <CollectionView.ItemsLayout>
+                    <GridItemsLayout Orientation="Vertical" Span="2"
                                          HorizontalItemSpacing="20"
                                          VerticalItemSpacing="20"/>
-                    </CollectionView.ItemsLayout>
+                </CollectionView.ItemsLayout>
 
-                    <CollectionView.ItemTemplate>
-                        <DataTemplate>
-                            <Frame BackgroundColor="#3E3C5C"
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Frame BackgroundColor="#3E3C5C"
                                    CornerRadius="15"
                                    Padding="20"
                                    HasShadow="True"
                                    Margin="20">
-                                <StackLayout HorizontalOptions="Center">
-                                    <Label Text="{Binding name}" 
+                            <StackLayout HorizontalOptions="Center">
+                                <Label Text="{Binding name}" 
                                            TextColor="White" 
                                            FontAttributes="Bold"
                                            HorizontalOptions="Center" />
-                                </StackLayout>
-                                <Frame.GestureRecognizers>
-                                    <TapGestureRecognizer
+                            </StackLayout>
+                            <Frame.GestureRecognizers>
+                                <TapGestureRecognizer
                                         Command="{Binding Source={RelativeSource AncestorType={x:Type local:MainPage}}, Path=BindingContext.OpenAreaCommand}"
                                         CommandParameter="{Binding .}" />
-                                </Frame.GestureRecognizers>
-                            </Frame>
-                        </DataTemplate>
-                    </CollectionView.ItemTemplate>
-                </CollectionView>
+                            </Frame.GestureRecognizers>
+                        </Frame>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
 
-            </VerticalStackLayout>
-        </ScrollView>
-    </Grid>
+        </VerticalStackLayout>
+    </ScrollView>
 </ContentPage>

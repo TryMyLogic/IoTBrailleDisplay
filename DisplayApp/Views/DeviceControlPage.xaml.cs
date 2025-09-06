@@ -65,7 +65,6 @@ public partial class DeviceControlPage : ContentPage, IQueryAttributable
             else
             {
                 DeviceNameLabel.Text = "No device selected";
-                System.Diagnostics.Debug.WriteLine("Invalid device in query");
             }
         }
         catch (Exception ex)
@@ -93,7 +92,6 @@ public partial class DeviceControlPage : ContentPage, IQueryAttributable
 
         LeftPane.Children.Add(BuildPowerButton());
         RightPane.Children.Add(BuildControlSlider(isShellySwitch));
-        //RightPane.Children.Add(BuildTempDial());
 
         if (isShellySwitch)
         {
