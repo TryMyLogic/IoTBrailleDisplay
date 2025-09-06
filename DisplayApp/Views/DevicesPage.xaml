@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+<ContentPage x:Name="DevicesPageRoot"
+             xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
              x:Class="DisplayApp.Views.DevicesPage"
              Title="Devices"
              BackgroundColor="#302F3F"
@@ -27,22 +29,40 @@
                 <CollectionView.ItemsLayout>
                     <GridItemsLayout Orientation="Vertical" Span="2" />
                 </CollectionView.ItemsLayout>
-
                 <CollectionView.ItemTemplate>
                     <DataTemplate>
-                        <Frame BackgroundColor="#3E3C5C"
-                           CornerRadius="10"
-                           Padding="10"
-                           Margin="5">
-                            <VerticalStackLayout>
-                                <Label Text="{Binding name, FallbackValue='Unknown Device'}" 
-                                   TextColor="White" 
-                                   FontSize="16"
-                                   FontAttributes="Bold" />
-                                <Label Text="{Binding model, FallbackValue='Unknown Model'}" 
-                                   TextColor="Gray" 
-                                   FontSize="12" />
-                            </VerticalStackLayout>
+                        <Frame BackgroundColor="#3E3C5C" CornerRadius="10" Padding="10" Margin="5">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Device Info -->
+                                <VerticalStackLayout Grid.Column="0" Spacing="2">
+                                    <Label Text="{Binding name, FallbackValue='Unknown Device'}"
+                           TextColor="White"
+                           FontSize="16"
+                           FontAttributes="Bold" />
+                                    <Label Text="{Binding model, FallbackValue='Unknown Model'}"
+                           TextColor="Gray"
+                           FontSize="12" />
+                                </VerticalStackLayout>
+
+                                <!-- Assign Area Button -->
+                                <Button Grid.Column="1"
+                        Text="✏️ Edit"
+                        FontSize="14"
+                        Padding="10,0"
+                        WidthRequest="80"
+                        HeightRequest="40"
+                        Clicked="OnDeviceOptionsClicked"
+                        Command="{Binding Source={x:Reference DevicesPageRoot}, Path=BindingContext.ShowAreaPickerCommand}"
+                        CommandParameter="{Binding .}"
+                        BackgroundColor="#5A5A7A"
+                        TextColor="White"
+                        CornerRadius="8" />
+                            </Grid>
                         </Frame>
                     </DataTemplate>
                 </CollectionView.ItemTemplate>

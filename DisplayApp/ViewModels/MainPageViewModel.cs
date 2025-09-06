@@ -44,7 +44,6 @@ public class MainPageViewModel
     {
         if (_haClient == null)
         {
-            System.Diagnostics.Debug.WriteLine("HomeAssistantWebSocketClient not registered");
             LoadMockData();
             _isDataLoaded = true;
             ((Command)OpenAreaCommand).ChangeCanExecute();
@@ -55,34 +54,26 @@ public class MainPageViewModel
         {
             // Show loading
             await _loadingService.ShowAsync("Loading data...");
-
-            //Use a cancellation token with timeout for safety
-            //using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            await Task.Delay(3000);
             await LoadRealDataAsync();
 
             _isDataLoaded = true;
             ((Command)OpenAreaCommand).ChangeCanExecute();
-
-            await _notifier.NotifyAsync("Data loaded successfully!", "Info");
         }
         catch (OperationCanceledException)
         {
-            Debug.WriteLine("WebSocket connection timed out. Loading mock data.");
             LoadMockData();
             _isDataLoaded = true;
             ((Command)OpenAreaCommand).ChangeCanExecute();
 
-            await _notifier.NotifyAsync("Could not load live data. Using mock data.", "Warning");
+            await _notifier.NotifyAsync("Warning","Could not load live data. Using mock data.");
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"Error loading real data: {ex.Message}");
             LoadMockData();
             _isDataLoaded = true;
             ((Command)OpenAreaCommand).ChangeCanExecute();
 
-            await _notifier.NotifyAsync("Error loading live data. Using mock data.", "Error");
+            await _notifier.NotifyAsync("Error", "Error loading live data. Using mock data.");
         }
         finally
         {
@@ -95,8 +86,6 @@ public class MainPageViewModel
         if (!_haClient.IsConnected)
         {
             await _haClient.ConnectAsync();
-            await _notifier.NotifyAsync("Connected to Home Assistant WebSocket", "Success");
-            System.Diagnostics.Debug.WriteLine("Connected to Home Assistant WebSocket");
         }
 
         Areas.Clear();
@@ -106,25 +95,6 @@ public class MainPageViewModel
         foreach (Area area in areas)
         {
             Areas.Add(area);
-        }
-
-        List<MqttDevice> devices = _haClient.Devices ?? [];
-        foreach (MqttDevice device in devices)
-        {
-            Devices.Add(device);
-        }
-
-        System.Diagnostics.Debug.WriteLine($"Loaded {Areas.Count} areas and {Devices.Count} devices");
-        System.Diagnostics.Debug.WriteLine("=== AREAS ===");
-        foreach (Area a in Areas)
-        {
-            System.Diagnostics.Debug.WriteLine($"Area: {a.area_id} - {a.name}");
-        }
-
-        System.Diagnostics.Debug.WriteLine("=== DEVICES ===");
-        foreach (MqttDevice d in Devices)
-        {
-            System.Diagnostics.Debug.WriteLine($"Device: {d.id}, Name: {d.name}, AreaId: {d.area_id}");
         }
     }
 
