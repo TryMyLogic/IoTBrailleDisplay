@@ -87,7 +87,7 @@ namespace DisplayApp
                     sp.GetRequiredService<ILogger<HomeAssistantWebSocketClient>>()
                     );
             });
-            services.AddSingleton<IoTDevice>(sp =>
+            services.AddSingleton<IIoTDevice>(sp =>
             {
                 ILogger<IoTDevice> logger = sp.GetRequiredService<ILogger<IoTDevice>>();
                 IoTDevice iotDevice = new(mqttBroker: mqttBrokerDomain, restEndpoint: "");

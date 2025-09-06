@@ -1,8 +1,6 @@
 using System.Collections;
-using DisplayLogic.Models;
-using Microsoft.Maui.Controls;
-using CommunityToolkit.Maui;
 using DisplayApp.ViewModels;
+using DisplayLogic.Models;
 
 namespace DisplayApp.Views;
 

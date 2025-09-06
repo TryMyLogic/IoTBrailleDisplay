@@ -1,5 +1,4 @@
 ﻿using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.Windows.Input;
 using DisplayApp.Services;
 using DisplayApp.Views;
@@ -65,7 +64,7 @@ public class MainPageViewModel
             _isDataLoaded = true;
             ((Command)OpenAreaCommand).ChangeCanExecute();
 
-            await _notifier.NotifyAsync("Warning","Could not load live data. Using mock data.");
+            await _notifier.NotifyAsync("Warning", "Could not load live data. Using mock data.");
         }
         catch (Exception ex)
         {

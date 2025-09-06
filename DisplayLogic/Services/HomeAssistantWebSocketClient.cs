@@ -151,6 +151,7 @@ namespace DisplayLogic.Services
                             {
                                 string? deviceId = resultProp.TryGetProperty("id", out JsonElement deviceIdProp) ? deviceIdProp.GetString() : null;
                                 string? areaId = resultProp.TryGetProperty("area_id", out JsonElement areaIdProp) ? areaIdProp.GetString() : null;
+                                await _notifier.NotifyAsync("WebSocket", $"Device update result for ID {id}: Device {deviceId} updated to area {areaId}.");
 
                                 MqttDevice? device = Devices.FirstOrDefault(matchedDevice =>
                                 {
