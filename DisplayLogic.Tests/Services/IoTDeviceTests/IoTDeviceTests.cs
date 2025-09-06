@@ -51,8 +51,8 @@ namespace DisplayLogic.Tests.Services.IoTDeviceTests
             IoTDevice device = new(TestBroker, TestRestEndpoint, TestPort, _httpClient, _mqttFactory, _mqttClient, _memoryLogger);
 
             // Assert
-            Assert.True(device.IsConnected); // Initially true until REST is used. May potentially remove as REST fallback is not entirely feasible anymore
-                                             // SharedFunctions.AssertSingleLogEvent(_memorySink, LogEventLevel.Debug, $"Device instance created. Broker: {TestBroker}. REST endpoint: {TestRestEndpoint}. Port: {TestPort}");
+            Assert.True(!device.IsConnected); // Initially false until ConnectAsync is called
+                                              // SharedFunctions.AssertSingleLogEvent(_memorySink, LogEventLevel.Debug, $"Device instance created. Broker: {TestBroker}. REST endpoint: {TestRestEndpoint}. Port: {TestPort}");
             Assert.NotNull(device);
         }
 

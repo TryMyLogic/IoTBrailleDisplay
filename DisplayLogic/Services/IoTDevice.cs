@@ -17,6 +17,8 @@ namespace DisplayLogic.Services
         private readonly string _mqttBroker;
         private readonly string _restEndpoint;
         private readonly MqttClientOptions _mqttOptions;
+        private readonly SemaphoreSlim _connectionLock = new(1, 1);
+        private readonly Dictionary<string, Action<string>> _subscriptionCallbacks = [];
 
         public IoTDevice(
             string mqttBroker,
@@ -36,7 +38,7 @@ namespace DisplayLogic.Services
             _mqttBroker = mqttBroker ?? throw new ArgumentNullException(nameof(mqttBroker));
             _mqttPort = port;
             _restEndpoint = restEndpoint ?? throw new ArgumentNullException(nameof(restEndpoint));
-            IsConnected = true; // Only false when rest is connected
+            IsConnected = false; //Set to false to prevent assumption that device is connected until ConnectAsync is called
 
             _mqttOptions = new MqttClientOptionsBuilder()
            .WithTcpServer(_mqttBroker, _mqttPort)
@@ -47,9 +49,11 @@ namespace DisplayLogic.Services
             _mqttClient.DisconnectedAsync += async err =>
             {
                 Console.WriteLine($"Disconnected from MQTT broker. Reason: {err.Reason}");
+                IsConnected = false;
                 await Task.CompletedTask;
             };
-            _logger.LogDebug("Device instance created. Broker: {mqttBroker}. REST endpoint: {restEndpoint}. Port: {port}", mqttBroker, restEndpoint, port);
+            _logger.LogDebug($"Device instance created. Broker: {mqttBroker}. REST endpoint: {restEndpoint}. Port: {port} ");
+            _mqttClient.ApplicationMessageReceivedAsync += HandleMessageAsync;
         }
 
         // Public read-only property indicating connection status
@@ -57,15 +61,37 @@ namespace DisplayLogic.Services
 
         public async Task ConnectAsync()
         {
-            MqttClientConnectResult response = await _mqttClient.ConnectAsync(_mqttOptions, CancellationToken.None);
-            // Update internal connection status based on broker's response
-            IsConnected = response.ResultCode == MqttClientConnectResultCode.Success;
-            _logger.LogInformation("Connected to MQTT broker.");
-
-            if (!IsConnected)
+            await _connectionLock.WaitAsync();
+            try
             {
-                _logger.LogError("Could not connect to MQTT broker.");
-                throw new Exception("Could not connect to MQTT broker.");
+                if (_mqttClient.IsConnected)
+                {
+                    await _mqttClient.DisconnectAsync();
+                }
+
+                if (!IsConnected)
+                {
+                    MqttClientConnectResult response = await _mqttClient.ConnectAsync(_mqttOptions, CancellationToken.None);
+                    IsConnected = response.ResultCode == MqttClientConnectResultCode.Success;
+                    _logger.LogInformation("Connected to MQTT broker.");
+
+                    if (!IsConnected)
+                    {
+                        throw new Exception($"Could not connect to MQTT broker. Result: {response.ResultCode}");
+                    }
+
+                    System.Diagnostics.Debug.WriteLine($"Connected to MQTT broker at {_mqttBroker}:{_mqttPort}");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"ConnectAsync error: {ex.Message}");
+                IsConnected = false;
+                throw;
+            }
+            finally
+            {
+                _ = _connectionLock.Release();
             }
         }
 
@@ -73,14 +99,22 @@ namespace DisplayLogic.Services
         // This method sends a DISCONNECT packet to the broker, ensuring a clean disconnection
         public async Task DisconnectAsync()
         {
-            IsConnected = false;
-            if (_mqttClient.IsConnected)
+            await _connectionLock.WaitAsync();
+            try
             {
-                // This will send the DISCONNECT packet. Calling _Dispose_ without DisconnectAsync the
-                // connection is closed in a "not clean" way. See MQTT specification for more details.
-                _logger.LogInformation("Disconnecting from MQTT broker...");
-                await _mqttClient.DisconnectAsync(new MqttClientDisconnectOptionsBuilder().WithReason(MqttClientDisconnectOptionsReason.NormalDisconnection).Build());
-                _logger.LogInformation("Disconnected from MQTT broker.");
+                if (_mqttClient.IsConnected)
+                {
+                    // This will send the DISCONNECT packet. Calling _Dispose_ without DisconnectAsync the
+                    // connection is closed in a "not clean" way. See MQTT specification for more details.
+                    _logger.LogInformation("Disconnecting from MQTT broker...");
+                    await _mqttClient.DisconnectAsync(new MqttClientDisconnectOptionsBuilder().WithReason(MqttClientDisconnectOptionsReason.NormalDisconnection).Build());
+                    IsConnected = false;
+                    _logger.LogInformation("Disconnected from MQTT broker.");
+                }
+            }
+            finally
+            {
+                _ = _connectionLock.Release();
             }
         }
 
@@ -102,6 +136,7 @@ namespace DisplayLogic.Services
             _logger.LogInformation("Sending payload: {topic}, {payload}", topic, payload);
             _ = await _mqttClient.PublishAsync(message, CancellationToken.None);
             _logger.LogInformation("Payload sent to MQTT.");
+
         }
 
         public async Task PublishWithFallbackAsync(string topic, string payload)
@@ -166,7 +201,7 @@ namespace DisplayLogic.Services
             // Added try catch block for logging purposes
             try
             {
-                _ = await _mqttClient.SubscribeAsync(topic);
+                _ = await _mqttClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic(topic).Build());
             }
             catch (Exception ex)
             {
@@ -180,8 +215,17 @@ namespace DisplayLogic.Services
         {
             if (_mqttClient.IsConnected)
             {
-                _logger.LogInformation("Subscribing to topic {topic} via MQTT.", topic);
-                return await SubscribeAsync(topic);
+                return await Task.Run(async () =>
+                {
+                    TaskCompletionSource<string> tcs = new();
+                    _subscriptionCallbacks[topic] = msg =>
+                    {
+                        _ = tcs.TrySetResult(msg);
+                    };
+                    _logger.LogInformation($"Subscribing to topic {topic} via MQTT.");
+                    _ = await _mqttClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic(topic).Build());
+                    return await tcs.Task;
+                });
             }
             else
             {
@@ -194,6 +238,27 @@ namespace DisplayLogic.Services
                     throw new Exception($"REST subscribe failed. Status: {response.StatusCode}");
                 }
                 return await response.Content.ReadAsStringAsync();
+            }
+        }
+
+        public async Task SubscribePersistentAsync(string topic, Action<string> callback)
+        {
+
+            _subscriptionCallbacks[topic] = callback;
+            _ = await _mqttClient.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic(topic).Build());
+            System.Diagnostics.Debug.WriteLine($"Subscribed to MQTT topic: {topic}");
+        }
+
+        private async Task HandleMessageAsync(MqttApplicationMessageReceivedEventArgs e)
+        {
+            string topic = e.ApplicationMessage.Topic;
+            ReadOnlySequence<byte> payload = e.ApplicationMessage.Payload;
+            byte[] bytes = payload.IsEmpty ? [] : (payload.IsSingleSegment ? payload.First.Span.ToArray() : payload.ToArray());
+            string msg = Encoding.UTF8.GetString(bytes);
+
+            if (_subscriptionCallbacks.TryGetValue(topic, out Action<string>? callback))
+            {
+                callback(msg); // Caller handles threading
             }
         }
 
