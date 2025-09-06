@@ -7,6 +7,18 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace DisplayLogic.Services
 {
+    /// <summary>
+    /// Implements a WebSocket client for interacting with a Home Assistant server,
+    /// managing authentication, device and area registry retrieval, and device area updates via WebSocket communication.
+    /// </summary>
+    /// <remarks>
+    /// This class communicates with Home Assistant's WebSocket API to fetch and update device and area registries,
+    /// specifically for MQTT-based devices.
+    /// This class maintains internal state (e.g., <see cref="Devices"/>, <see cref="Areas"/>, <see cref="IsConnected"/>)
+    /// and relies on an injected <see cref="IWebSocketClient"/> for WebSocket communication and <see cref="IUserNotifier"/>
+    /// to provide user feedback. All operations are optionally logged via the injected
+    /// <see cref="ILogger{T}"/>.
+    /// </remarks>
     public class HomeAssistantWebSocketClient : IHomeAssistantWebSocketClient
     {
         private readonly IWebSocketClient _webSocketClient;
@@ -19,7 +31,33 @@ namespace DisplayLogic.Services
         private int _areaRegistryCommandId;
         private int _updateAreaCommandId;
 
+        /// <summary>
+        /// Gets the list of MQTT devices retrieved from the Home Assistant device registry.
+        /// </summary>
+        /// <value>
+        /// A list of <see cref="MqttDevice"/> objects, each representing a device with metadata
+        /// like identifiers and the manufacturer. The list is empty until
+        /// <see cref="ConnectAsync"/> completes successfully.
+        /// </value>
+        /// <remarks>
+        /// The device registry is a Home Assistant concept that catalogs devices, including their unique
+        /// identifiers and attributes. For this list, only MQTT-based devices are included,
+        /// filtered by their "mqtt" identifier prefix.
+        /// The list is updated during initialization (<see cref="ConnectAsync"/>)
+        /// and may be modified when processing area update results from <see cref="UpdateDeviceAreaAsync"/>.
+        /// </remarks>
         public List<MqttDevice> Devices { get; private set; } = [];
+        /// <summary>
+        /// Gets the list of areas retrieved from the Home Assistant area registry.
+        /// </summary>
+        /// <value>
+        /// A list of <see cref="Area"/> objects, each representing an area with metadata like ID, name, 
+        /// and optional floor & icon. The list is updated during initialization (<see cref="ConnectAsync"/>)
+        /// </value>
+        /// <remarks>
+        /// The area registry in Home Assistant organizes devices into logical or physical spaces (e.g., "Kitchen").
+        /// The list is populated during initialization (<see cref="ConnectAsync"/>) and remains unchanged.
+        /// </remarks>
         public List<Area> Areas { get; private set; } = [];
 
         private TaskCompletionSource<bool>? _authSuccessTcs;
@@ -28,8 +66,51 @@ namespace DisplayLogic.Services
         private bool _deviceRegistryReceived = false;
         private bool _areaRegistryReceived = false;
 
+        /// <summary>
+        /// Indicates whether the WebSocket connection to the Home Assistant server is active and authenticated.
+        /// </summary>
+        /// <value>
+        /// <c>true</c> if connected and authenticated; otherwise, <c>false</c>.
+        /// </value>
+        /// <remarks>
+        /// Set to <c>true</c> after successful authentication in <see cref="ConnectAsync"/> 
+        /// and reset to <c>false</c> in <see cref="StopAsync"/>. 
+        /// Reflects the current operational state of the WebSocket connection.
+        /// </remarks>
         public bool IsConnected { get; private set; } = false;
 
+        /// <summary>
+        /// Primary constructor for creating and configuring a <see cref="HomeAssistantWebSocketClient"/>.
+        /// </summary>
+        /// <param name="webSocketClient">
+        /// The WebSocket client for communication with the Home Assistant server. Must not be null.
+        /// </param>
+        /// <param name="notifier">
+        /// The notifier for sending user feedback (e.g., errors, status updates). Must not be null.
+        /// </param>
+        /// <param name="accessToken">
+        /// The Home Assistant <b>long-lived access token</b> used for WebSocket API authentication. 
+        /// Must not be null or empty. See 
+        /// <see href="https://community.home-assistant.io/t/how-to-get-long-lived-access-token/162159/5">
+        /// for how to create a long-lived access token
+        /// </see>.
+        /// </param>
+        /// <param name="logger">
+        /// The logger for diagnostics, using <see cref="ILogger{T}"/> with Serilog for flexibility.
+        /// Optional and defaults to <see cref="NullLogger{T}"/> with no logging.
+        /// </param>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown if <paramref name="webSocketClient"/>, <paramref name="notifier"/>, or 
+        /// <paramref name="accessToken"/> is null.
+        /// </exception>
+        /// <remarks>
+        /// Subscribes to the <see cref="IWebSocketClient.PayloadReceived"/> event to handle incoming 
+        /// WebSocket messages. Initializes empty <see cref="Devices"/> and <see cref="Areas"/> lists 
+        /// and logs creation details.
+        /// </remarks>
+        /// <seealso href="https://developers.home-assistant.io/docs/api/websocket#authentication-phase">
+        /// Home Assistant WebSocket Authentication Phase
+        /// </seealso>
         public HomeAssistantWebSocketClient(
         IWebSocketClient webSocketClient,
         IUserNotifier notifier,
@@ -48,6 +129,18 @@ namespace DisplayLogic.Services
             _logger.LogDebug("HomeAssistantWebSocketClient created with WebSocketClient: {accessToken}", accessToken);
         }
 
+        /// <summary>
+        /// Connects to the Home Assistant WebSocket server, authenticates, and retrieves device and area registries.
+        /// </summary>
+        /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+        /// <exception cref="TimeoutException">Thrown if authentication and registry retrieval exceed 30 seconds.</exception>
+        /// <exception cref="AuthenticationException">Thrown if the access token is rejected by the server.</exception>
+        /// <exception cref="Exception">Thrown if <see cref="IWebSocketClient.StartAsync"/> fails or other unexpected errors occur.</exception>
+        /// <remarks>
+        /// Waits for authentication and registry data before completing. On success, sets <see cref="IsConnected"/> to <c>true</c> and populates <see cref="Devices"/> and <see cref="Areas"/>. 
+        /// Uses <see cref="ILogger{T}"/> for logging and <see cref="IUserNotifier"/> for progress or error notifications. 
+        /// <b>Only MQTT devices are included in the device registry.</b> 
+        /// </remarks>
         public async Task ConnectAsync()
         {
             _logger.LogInformation("Starting WebSocket connection...");
@@ -69,6 +162,16 @@ namespace DisplayLogic.Services
             }
         }
 
+        /// <summary>
+        /// Waits for authentication and registry data during WebSocket initialization.
+        /// </summary>
+        /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+        /// <exception cref="AuthenticationException">Thrown if authentication fails.</exception>
+        /// <remarks>
+        /// Coordinates authentication and registry retrieval for <see cref="ConnectAsync"/>, 
+        /// sets <see cref="IsConnected"/>, and notifies via <see cref="IUserNotifier"/>. 
+        /// Logs events via <see cref="ILogger{T}"/>.
+        /// </remarks>
         private async Task WaitForInitializationConditionAsync()
         {
             _authSuccessTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -90,6 +193,16 @@ namespace DisplayLogic.Services
             _ = await _registryReceivedTcs.Task;
         }
 
+        /// <summary>
+        /// Stops the WebSocket connection to the Home Assistant server and updates the connection state.
+        /// </summary>
+        /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+        /// <exception cref="Exception">Thrown if <see cref="IWebSocketClient.StopAsync"/> fails.</exception>
+        /// <remarks>
+        /// Closes the WebSocket connection and sets <see cref="IsConnected"/> to <c>false</c>. 
+        /// Logs the stopping process via <see cref="ILogger{T}"/>.
+        /// Called after <see cref="ConnectAsync"/> when client is no longer required, to release resources.
+        /// </remarks>
         public async Task StopAsync()
         {
             _logger.LogInformation("Stopping WebSocket connection...");
@@ -98,6 +211,18 @@ namespace DisplayLogic.Services
             _logger.LogInformation("WebSocket connection stopped.");
         }
 
+        /// <summary>
+        /// Processes incoming WebSocket payloads from the Home Assistant server.
+        /// </summary>
+        /// <param name="payload">The raw JSON payload received from the server. Must not be null or empty.</param>
+        /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+        /// <exception cref="JsonException">Thrown if the payload cannot be parsed as valid JSON.</exception>
+        /// <exception cref="Exception">Thrown for unexpected errors during payload processing.</exception>
+        /// <remarks>
+        /// Handles messages such as authentication responses, device and area registry results and device update confirmations. 
+        /// Updates <see cref="Devices"/>, <see cref="Areas"/>, and internal state flags, sends notifications via <see cref="IUserNotifier"/>, 
+        /// and logs events via <see cref="ILogger{T}"/>. Requires a valid, active WebSocket connection and well-formed JSON payloads.
+        /// </remarks>
         private async Task OnPayloadReceived(string payload)
         {
             try
@@ -183,6 +308,15 @@ namespace DisplayLogic.Services
             }
         }
 
+        /// <summary>
+        /// Sends an authentication command to the Home Assistant WebSocket server using the access token.
+        /// </summary>
+        /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+        /// <exception cref="Exception">Thrown if <see cref="IWebSocketClient.SendAsync"/> fails.</exception>
+        /// <remarks>
+        /// Serializes the authentication command and sends it via the WebSocket client when the server requests authentication.
+        /// Logs the command via <see cref="ILogger{T}"/>.
+        /// </remarks>
         private Task SendAuthAsync()
         {
             object authCommand = new
@@ -195,6 +329,13 @@ namespace DisplayLogic.Services
             return _webSocketClient.SendAsync(jsonString);
         }
 
+        /// <summary>
+        /// Completes initialization when both device and area registries are received.
+        /// </summary>
+        /// <remarks>
+        /// Checks <see cref="_deviceRegistryReceived"/> and <see cref="_areaRegistryReceived"/>, and signals completion via <see cref="_registryReceivedTcs"/> if both are true. 
+        /// Called after processing registry results and logs completion via <see cref="ILogger{T}"/>.
+        /// </remarks>
         private void TryCompleteRegistryInit()
         {
             if (_deviceRegistryReceived && _areaRegistryReceived)
@@ -204,6 +345,16 @@ namespace DisplayLogic.Services
             }
         }
 
+        /// <summary>
+        /// Sends a command to retrieve the Home Assistant device registry.
+        /// </summary>
+        /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+        /// <exception cref="Exception">Thrown if <see cref="IWebSocketClient.SendAsync"/> fails.</exception>
+        /// <remarks>
+        /// Serializes a device registry list command, assigns a unique ID (<see cref="_deviceRegistryCommandId"/>), and sends it via the WebSocket client. 
+        /// Logs the command via <see cref="ILogger{T}"/>.
+        /// Similar to <see cref="SendAreaRegistryCommandAsync"/> but targets devices.
+        /// </remarks>
         private Task SendDeviceRegistryCommandAsync()
         {
             _deviceRegistryCommandId = Interlocked.Increment(ref _lastCommandId);
@@ -217,6 +368,16 @@ namespace DisplayLogic.Services
             return _webSocketClient.SendAsync(jsonString);
         }
 
+        /// <summary>
+        /// Parses a JSON element into a list of MQTT devices from the Home Assistant device registry.
+        /// </summary>
+        /// <param name="resultProp">The JSON element containing device registry data. Must be a valid JSON array.</param>
+        /// <returns>A list of <see cref="MqttDevice"/> objects filtered for MQTT-based devices, or an empty list if input is null or invalid.</returns>
+        /// <exception cref="JsonException">Thrown if the JSON structure is invalid (e.g., missing required fields like "id").</exception>
+        /// <remarks>
+        /// Extracts metadata corresponding to the <see cref="MqttDevice"/> properties from the JSON result, 
+        /// filters for devices with "mqtt" identifiers, and handles optional fields with fallback defaults.
+        /// </remarks>
         private static List<MqttDevice> ParseMqttDevices(JsonElement resultProp)
         {
             List<JsonElement>? allDevices = JsonSerializer.Deserialize<List<JsonElement>>(resultProp);
@@ -278,6 +439,15 @@ namespace DisplayLogic.Services
          .ToList() ?? [];
         }
 
+        /// <summary>
+        /// Sends a command to retrieve the Home Assistant area registry.
+        /// </summary>
+        /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+        /// <exception cref="Exception">Thrown if <see cref="IWebSocketClient.SendAsync"/> fails.</exception>
+        /// <remarks>
+        /// Serializes an area registry list command, assigns a unique ID (<see cref="_areaRegistryCommandId"/>), and sends it via the WebSocket client. 
+        /// Logs the command via <see cref="ILogger{T}"/>. Similar to <see cref="SendDeviceRegistryCommandAsync"/> but targets areas.
+        /// </remarks>
         private Task SendAreaRegistryCommandAsync()
         {
             _areaRegistryCommandId = Interlocked.Increment(ref _lastCommandId);
@@ -291,6 +461,15 @@ namespace DisplayLogic.Services
             return _webSocketClient.SendAsync(jsonString);
         }
 
+        /// <summary>
+        /// Parses a JSON element into a list of areas from the Home Assistant area registry.
+        /// </summary>
+        /// <param name="resultProp">The JSON element containing area registry data. Must be a valid JSON array.</param>
+        /// <returns>A list of <see cref="Area"/> objects, or an empty list if input is null or invalid.</returns>
+        /// <exception cref="JsonException">Thrown if the JSON structure is invalid (e.g., missing required fields like "area_id" or "name").</exception>
+        /// <remarks>
+        /// Extracts area metadata corresponding to <see cref="Area"/> properties from the JSON result. Handles optional fields with null values and provides defaults for required fields.
+        /// </remarks>
         private static List<Area> ParseAreas(JsonElement resultProp)
         {
             List<JsonElement>? areaElements = JsonSerializer.Deserialize<List<JsonElement>>(resultProp);
@@ -311,6 +490,19 @@ namespace DisplayLogic.Services
             })];
         }
 
+        /// <summary>
+        /// Updates the area assignment for a device in the Home Assistant device registry.
+        /// </summary>
+        /// <param name="uniqueId">The unique ID of the device. Must exist in <see cref="Devices"/>.</param>
+        /// <param name="areaId">The ID of the area to assign. Must exist in <see cref="Areas"/> and not be null or empty.</param>
+        /// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+        /// <exception cref="ArgumentException">Thrown if <paramref name="areaId"/> is null, empty, or not present in <see cref="Areas"/>.</exception>
+        /// <exception cref="InvalidOperationException">Thrown if no device with <paramref name="uniqueId"/> exists in <see cref="Devices"/>.</exception>
+        /// <exception cref="Exception">Thrown if <see cref="IWebSocketClient.SendAsync"/> fails.</exception>
+        /// <remarks>
+        /// Sends a command to update the area of the device and updates <see cref="Devices"/> upon server confirmation. 
+        /// Updates command IDs (<see cref="_lastCommandId"/> and <see cref="_updateAreaCommandId"/>), logs events via <see cref="ILogger{T}"/>, and notifies users via <see cref="IUserNotifier"/>.
+        /// </remarks>
         public async Task UpdateDeviceAreaAsync(string uniqueId, string areaId)
         {
             _logger.LogInformation("UpdateDeviceAsync called with uniqueId: {uniqueId}, areaId: {areaId}.", uniqueId, areaId);
