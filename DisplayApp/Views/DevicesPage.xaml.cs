@@ -52,10 +52,10 @@ public partial class DevicesPage : ContentPage, IQueryAttributable
         }
 
         // Build list of area names correctly
-        string[] areaNames = [.. vm.Areas.Select(a =>
-        {
-            return a.name;
-        })];
+        string[] areaNames = [.. vm.Areas
+            .Where(a => { return !string.Equals(a.area_id, device.area_id, StringComparison.OrdinalIgnoreCase); })
+            .Select(a => { return a.name; })
+        ];
 
         if (areaNames.Length == 0)
         {
