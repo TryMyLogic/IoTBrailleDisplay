@@ -136,4 +136,10 @@ public partial class DevicesPage : ContentPage, IQueryAttributable
         }
     }
 
+    // Back button handler
+    private async void OnBackClicked(object sender, EventArgs e)
+    {
+        await Shell.Current.GoToAsync("..");
+    }
+
 }

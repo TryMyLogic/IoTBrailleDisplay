@@ -344,6 +344,5 @@ public partial class DeviceControlPage : ContentPage, IQueryAttributable
     {
         Debug.WriteLine("Back button clicked");
         await Shell.Current.GoToAsync("..");
-        //await _notifier.NotifyAsync("Navigation", "Returned to previous page");
     }
 }

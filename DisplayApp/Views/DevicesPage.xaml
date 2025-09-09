@@ -15,6 +15,18 @@
                TextColor="#A678E2"
                HorizontalOptions="Center" />
 
+            <!-- Back Button -->
+            <Button Text="← Back"
+                Grid.Column="1"
+                Grid.Row="1"
+                Margin="20,0"
+                BackgroundColor="#A678E2"
+                TextColor="White"
+                CornerRadius="25"
+                HorizontalOptions="Start"
+                VerticalOptions="Start"
+                Clicked="OnBackClicked" />
+
             <ActivityIndicator x:Name="LoadingIndicator"
                            IsRunning="False"
                            Color="#A678E2"
