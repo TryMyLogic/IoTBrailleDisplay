@@ -76,21 +76,24 @@ namespace DisplayApp
                     haWebSocketUrl,
                     sp.GetRequiredService<IUserNotifier>(),
                     sp.GetRequiredService<ILogger<WebSocketClient>>()
-                    );
+                );
             });
-            services.AddSingleton<HomeAssistantWebSocketClient>(sp =>
+
+            services.AddSingleton<IHomeAssistantWebSocketClient>(sp =>
             {
                 return new HomeAssistantWebSocketClient(
                     sp.GetRequiredService<IWebSocketClient>(),
                     sp.GetRequiredService<IUserNotifier>(),
                     accessToken,
                     sp.GetRequiredService<ILogger<HomeAssistantWebSocketClient>>()
-                    );
+                );
             });
+
             services.AddSingleton<IIoTDevice>(sp =>
             {
                 ILogger<IoTDevice> logger = sp.GetRequiredService<ILogger<IoTDevice>>();
                 IoTDevice iotDevice = new(mqttBroker: mqttBrokerDomain, restEndpoint: "");
+
                 _ = Task.Run(async () =>
                 {
                     try
@@ -102,6 +105,7 @@ namespace DisplayApp
                         logger.LogError(ex, "Background ConnectAsync error occurred: {ErrorMessage}", ex.Message);
                     }
                 });
+
                 return iotDevice;
             });
 
