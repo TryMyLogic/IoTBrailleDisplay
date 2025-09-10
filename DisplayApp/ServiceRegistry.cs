@@ -8,6 +8,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Events;
+#if ANDROID
+using DisplayApp.Platforms.Android;
+#elif WINDOWS
+using DisplayApp.Platforms.Windows;
+#endif
 
 namespace DisplayApp
 {
@@ -111,15 +116,15 @@ namespace DisplayApp
 
             // Conditional compilation directives for platform specific services. (Note: Do not indent or it will not work)
 #if ANDROID
-
+            services.AddSingleton<IConnectionStrategy, BluetoothConnectionStrategyAndroid>();
 #elif WINDOWS
-
+            services.AddSingleton<IConnectionStrategy, BluetoothConnectionStrategyWindows>();
 #elif IOS
 
 #elif MACCATALYST
 
 #else
-            // Add defaults as fallback here. 
+            services.AddSingleton<IConnectionStrategy, MockBluetoothConnection>();
 #endif
 
             return services;
