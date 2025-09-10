@@ -1,4 +1,5 @@
-﻿namespace DisplayLogic.Services
+﻿
+namespace DisplayLogic.Services
 {
     public interface IIoTDevice
     {
@@ -16,5 +17,6 @@
 
         // Subscribes to an IoT topic (MQTT) or retrieves data (REST)
         Task<string> SubscribeAsync(string topic);
+        Task SubscribePersistentAsync(string topic, Action<string> callback);
     }
 }

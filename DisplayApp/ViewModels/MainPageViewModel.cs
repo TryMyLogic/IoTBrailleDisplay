@@ -13,13 +13,13 @@ public class MainPageViewModel
     public ObservableCollection<Area> Areas { get; set; } = [];
     public ObservableCollection<MqttDevice> Devices { get; set; } = [];
     public ICommand OpenAreaCommand { get; }
-    private readonly HomeAssistantWebSocketClient _haClient;
+    private readonly IHomeAssistantWebSocketClient _haClient;
     private bool _isDataLoaded;
     private readonly ILoadingService _loadingService;
     private readonly IUserNotifier _notifier;
 
 
-    public MainPageViewModel(HomeAssistantWebSocketClient haClient, ILoadingService loadingService, IUserNotifier notifier)
+    public MainPageViewModel(IHomeAssistantWebSocketClient haClient, ILoadingService loadingService, IUserNotifier notifier)
     {
         _haClient = haClient;
         _loadingService = loadingService;

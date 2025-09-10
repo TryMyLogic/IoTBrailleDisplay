@@ -15,7 +15,7 @@ namespace DisplayApp.ViewModels
         public ObservableCollection<MqttDevice> Devices { get; } = [];
         public ObservableCollection<Area> Areas { get; } = [];
         public ICommand AssignAreaCommand { get; }
-        private readonly HomeAssistantWebSocketClient _haClient;
+        private readonly IHomeAssistantWebSocketClient _haClient;
         public event Action? DeviceAreaChanged;
 
         private void RaiseDeviceAreaChanged()
@@ -23,7 +23,7 @@ namespace DisplayApp.ViewModels
             DeviceAreaChanged?.Invoke();
         }
 
-        public DevicesPageViewModel(IUserNotifier notifier, HomeAssistantWebSocketClient haClient)
+        public DevicesPageViewModel(IUserNotifier notifier, IHomeAssistantWebSocketClient haClient)
         {
             _notifier = notifier;
             _haClient = haClient;

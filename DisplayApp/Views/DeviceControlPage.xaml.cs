@@ -10,7 +10,7 @@ namespace DisplayApp.Views;
 [QueryProperty(nameof(Device), "device")]
 public partial class DeviceControlPage : ContentPage, IQueryAttributable
 {
-    private readonly IoTDevice _iotDevice;
+    private readonly IIoTDevice _iotDevice;
     private MqttDevice _device;
     private readonly ILoadingService _loadingService;
     private readonly IUserNotifier _notifier;
@@ -28,7 +28,7 @@ public partial class DeviceControlPage : ContentPage, IQueryAttributable
         }
     }
 
-    public DeviceControlPage(IoTDevice iotDevice, ILoadingService loadingService, IUserNotifier notifier)
+    public DeviceControlPage(IIoTDevice iotDevice, ILoadingService loadingService, IUserNotifier notifier)
     {
         InitializeComponent();
         _iotDevice = iotDevice ?? throw new ArgumentNullException(nameof(iotDevice));
@@ -344,6 +344,5 @@ public partial class DeviceControlPage : ContentPage, IQueryAttributable
     {
         Debug.WriteLine("Back button clicked");
         await Shell.Current.GoToAsync("..");
-        //await _notifier.NotifyAsync("Navigation", "Returned to previous page");
     }
 }

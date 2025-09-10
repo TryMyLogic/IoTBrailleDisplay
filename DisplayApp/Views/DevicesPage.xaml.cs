@@ -52,10 +52,10 @@ public partial class DevicesPage : ContentPage, IQueryAttributable
         }
 
         // Build list of area names correctly
-        string[] areaNames = [.. vm.Areas.Select(a =>
-        {
-            return a.name;
-        })];
+        string[] areaNames = [.. vm.Areas
+            .Where(a => { return !string.Equals(a.area_id, device.area_id, StringComparison.OrdinalIgnoreCase); })
+            .Select(a => { return a.name; })
+        ];
 
         if (areaNames.Length == 0)
         {
@@ -134,6 +134,12 @@ public partial class DevicesPage : ContentPage, IQueryAttributable
             RoomNameLabel.Text = "Error loading devices";
             DevicesCollection.ItemsSource = new List<MqttDevice>();
         }
+    }
+
+    // Back button handler
+    private async void OnBackClicked(object sender, EventArgs e)
+    {
+        await Shell.Current.GoToAsync("..");
     }
 
 }
