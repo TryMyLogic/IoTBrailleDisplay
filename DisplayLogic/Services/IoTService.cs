@@ -94,7 +94,7 @@ namespace DisplayLogic.Services
             {
                 _logger.LogInformation("Processed response into text: {Text}.", text);
                 Console.WriteLine($"Sending text to Braille Display: {text}");
-                // await _brailleDisplay.SendTextAsync(text);
+                await _brailleDisplay!.SendTextAsync(text);
             }
             else
             {

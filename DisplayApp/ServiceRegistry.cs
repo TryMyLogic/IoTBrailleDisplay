@@ -114,6 +114,7 @@ namespace DisplayApp
                 return iotDevice;
             });
 
+            services.AddSingleton<IBrailleDisplay, BrailleDisplay>();
             // Conditional compilation directives for platform specific services. (Note: Do not indent or it will not work)
 #if ANDROID
             services.AddSingleton<IConnectionStrategy, BluetoothConnectionStrategyAndroid>();
