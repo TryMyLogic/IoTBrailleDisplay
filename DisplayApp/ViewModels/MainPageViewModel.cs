@@ -90,10 +90,29 @@ public class MainPageViewModel
         Areas.Clear();
         Devices.Clear();
 
-        List<Area> areas = _haClient.Areas ?? [];
-        foreach (Area area in areas)
+        // Load all devices
+        foreach (MqttDevice device in _haClient.Devices ?? Enumerable.Empty<MqttDevice>())
+        {
+            Devices.Add(device);
+        }
+
+        // Load all areas from Home Assistant
+        foreach (Area area in _haClient.Areas ?? Enumerable.Empty<Area>())
         {
             Areas.Add(area);
+        }
+
+        // Always add an "Unassigned" room (even if empty)
+        if (!Areas.Any(a =>
+        {
+            return a.area_id == "unassigned";
+        }))
+        {
+            Areas.Insert(0, new Area
+            {
+                area_id = "unassigned",
+                name = "Unassigned"
+            });
         }
     }
 
