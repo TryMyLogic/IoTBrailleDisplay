@@ -10,11 +10,15 @@ namespace DisplayApp.Services
     {
         public async Task NotifyAsync(string title, string message)
         {
-            CancellationTokenSource cancellationTokenSource = new();
             string fullMessage = string.IsNullOrEmpty(title) ? message : $"{title}: {message}";
 
-            IToast toast = Toast.Make(fullMessage, ToastDuration.Short, 14);
-            await toast.Show(cancellationTokenSource.Token);
+            // Ensure Toast runs on the main thread
+            await MainThread.InvokeOnMainThreadAsync(async () =>
+            {
+                CancellationTokenSource cancellationTokenSource = new();
+                IToast toast = Toast.Make(fullMessage, ToastDuration.Short, 14);
+                await toast.Show(cancellationTokenSource.Token);
+            });
         }
     }
 }
