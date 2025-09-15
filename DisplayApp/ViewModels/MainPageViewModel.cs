@@ -121,6 +121,7 @@ public class MainPageViewModel
         }
     }
 
+
     private void LoadMockData()
     {
         Areas.Add(new Area { area_id = "kitchen", name = "Kitchen" });

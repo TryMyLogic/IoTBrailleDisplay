@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Reflection;
 using DisplayApp.Services;
 using DisplayApp.ViewModels;
 using DisplayApp.Views;
@@ -15,9 +16,12 @@ namespace DisplayApp
     {
         public static IServiceCollection RegisterCustomServices(this IServiceCollection services)
         {
+            var assembly = Assembly.GetExecutingAssembly();
+            using Stream? stream = assembly.GetManifestResourceStream("DisplayApp.appsettings.json"); // <-- Make sure namespace matches
+
             IConfiguration configuration = new ConfigurationBuilder()
-            .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-            .Build();
+                .AddJsonStream(stream!)
+                .Build();
 
             // Get config values
             string webSocketProtocol = configuration["HomeAssistant:WebSocketProtocol"] ?? "wss"; // Assume websocket secure by default, similar to HTTPS
