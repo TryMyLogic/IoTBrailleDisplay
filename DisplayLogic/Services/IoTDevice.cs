@@ -78,7 +78,7 @@ namespace DisplayLogic.Services
                 await Task.CompletedTask;
             };
             _logger.LogDebug($"Device instance created. Broker: {mqttBroker}. REST endpoint: {restEndpoint}. Port: {port} ");
-            _mqttClient.ApplicationMessageReceivedAsync += HandleMessageAsync;
+            _mqttClient.ApplicationMessageReceivedAsync += HandleMessage;
         }
 
         /// <summary>
@@ -322,7 +322,7 @@ namespace DisplayLogic.Services
         /// <summary>
         /// Internal handler that processes MQTT messages and dispatches them to registered subscription callbacks.
         /// </summary>
-        private async Task HandleMessageAsync(MqttApplicationMessageReceivedEventArgs e)
+        private Task HandleMessage(MqttApplicationMessageReceivedEventArgs e)
         {
             string topic = e.ApplicationMessage.Topic;
             ReadOnlySequence<byte> payload = e.ApplicationMessage.Payload;
@@ -333,6 +333,8 @@ namespace DisplayLogic.Services
             {
                 callback(msg); // Caller handles threading
             }
+
+            return Task.CompletedTask;
         }
 
         /// <summary>
