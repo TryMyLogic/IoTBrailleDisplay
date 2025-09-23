@@ -17,7 +17,6 @@ namespace DisplayApp.ViewModels
         public ICommand AssignAreaCommand { get; }
         private readonly IHomeAssistantWebSocketClient _haClient;
         public event Action? DeviceAreaChanged;
-        public Area? CurrentArea { get; private set; }
 
         private void RaiseDeviceAreaChanged()
         {
@@ -98,22 +97,6 @@ namespace DisplayApp.ViewModels
                 }
             });
 
-        }
-
-        public void LoadForArea(Area area)
-        {
-            CurrentArea = area;
-
-            Devices.Clear();
-            foreach (MqttDevice? d in _haClient.Devices.Where(d =>
-            {
-                return string.Equals(string.IsNullOrEmpty(d.area_id) ? "unassigned" : d.area_id,
-                                              area.area_id,
-                                              StringComparison.OrdinalIgnoreCase);
-            }))
-            {
-                Devices.Add(d);
-            }
         }
     }
 }

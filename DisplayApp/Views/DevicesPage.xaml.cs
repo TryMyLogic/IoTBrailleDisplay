@@ -4,19 +4,50 @@ using DisplayLogic.Models;
 
 namespace DisplayApp.Views;
 
+/// <summary>
+/// Represents a page that displays all devices within a specific area.
+/// Users can view devices, navigate to individual device control pages, 
+/// and reassign devices to different areas.
+/// </summary>
+/// <remarks>
+/// This page implements <see cref="IQueryAttributable"/> to receive navigation
+/// parameters from other pages, specifically the selected <see cref="Area"/> and
+/// a list of <see cref="MqttDevice"/> instances in that area. The page binds to
+/// <see cref="DevicesPageViewModel"/> for all UI interactions and device management logic.
+/// </remarks>
 public partial class DevicesPage : ContentPage, IQueryAttributable
 {
+    /// <summary>
+    /// The area currently displayed on the page. Used for filtering the device list.
+    /// </summary>
+    private Area? _currentArea;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DevicesPage"/> class.
+    /// Sets up the page's BindingContext and subscribes to device-area change events.
+    /// </summary>
+    /// <param name="vm">
+    /// The <see cref="DevicesPageViewModel"/> instance that provides device and area data,
+    /// as well as commands for navigation and device reassignment.
+    /// </param>
     public DevicesPage(DevicesPageViewModel vm)
     {
         InitializeComponent();
         BindingContext = vm;
+
+        // Refresh the device list whenever the ViewModel signals a device-area change
         vm.DeviceAreaChanged += () =>
         {
             RefreshDeviceList(); // RefreshDeviceList uses _currentArea to filter
         };
     }
 
+    /// <summary>
+    /// Handles the selection of a device from the collection view.
+    /// Navigates to the <see cref="DeviceControlPage"/> for the selected device.
+    /// </summary>
+    /// <param name="sender">The collection view that raised the event.</param>
+    /// <param name="e">Event data containing the currently selected item.</param>
     private async void OnDeviceSelected(object sender, SelectionChangedEventArgs e)
     {
         if (e.CurrentSelection is IList selectionList && selectionList.Count > 0 && selectionList[0] is MqttDevice selectedDevice)
@@ -38,6 +69,13 @@ public partial class DevicesPage : ContentPage, IQueryAttributable
             ((CollectionView)sender).SelectedItem = null;
         }
     }
+
+    /// <summary>
+    /// Handles the "Options" button click for a device.
+    /// Allows the user to reassign the device to a different area via an action sheet.
+    /// </summary>
+    /// <param name="sender">The button that was clicked.</param>
+    /// <param name="e">Event data (not used).</param>
     private async void OnDeviceOptionsClicked(object sender, EventArgs e)
     {
         if (sender is not Button btn || btn.BindingContext is not MqttDevice device)
@@ -86,6 +124,11 @@ public partial class DevicesPage : ContentPage, IQueryAttributable
         }
     }
 
+    /// <summary>
+    /// Refreshes the device list displayed in the CollectionView based on the current area.
+    /// Optionally accepts a list of devices to filter, otherwise uses the ViewModel's device list.
+    /// </summary>
+    /// <param name="devices">Optional list of devices to display.</param>
     private void RefreshDeviceList(IEnumerable<MqttDevice>? devices = null)
     {
         if (BindingContext is not DevicesPageViewModel vm || vm.CurrentArea == null)
@@ -112,7 +155,11 @@ public partial class DevicesPage : ContentPage, IQueryAttributable
             : $"Devices in {vm.CurrentArea.name} (No devices found)";
     }
 
-
+    /// <summary>
+    /// Receives query parameters from navigation and applies them to the page.
+    /// Expects "area" and "devices" keys to initialize the current area and device list.
+    /// </summary>
+    /// <param name="query">Dictionary containing query attributes.</param>
     public void ApplyQueryAttributes(IDictionary<string, object> query)
     {
         try
@@ -141,7 +188,15 @@ public partial class DevicesPage : ContentPage, IQueryAttributable
         }
     }
 
-    // Back button handler
+    /// <summary>
+    /// Handles the "Back" button click.
+    /// Navigates back to the previous page in the navigation stack.
+    /// 
+    /// Its a back button, what else would it do?
+    /// 
+    /// </summary>
+    /// <param name="sender">The button that was clicked.</param>
+    /// <param name="e">Event arguments.</param>
     private async void OnBackClicked(object sender, EventArgs e)
     {
         await Shell.Current.GoToAsync("..");

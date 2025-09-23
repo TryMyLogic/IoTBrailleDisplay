@@ -7,20 +7,6 @@ using MQTTnet;
 
 namespace DisplayLogic.Services
 {
-    /// <summary>
-    /// Represents an IoT device communication service that abstracts
-    /// MQTT messaging with REST fallback capabilities.
-    /// 
-    /// This class is responsible for:
-    /// - Connecting and disconnecting from an MQTT broker.
-    /// - Publishing messages to MQTT topics, with automatic REST fallback if MQTT is unavailable.
-    /// - Subscribing to MQTT topics and processing responses.
-    /// - Managing persistent subscriptions via callbacks for asynchronous message handling.
-    /// 
-    /// Thread safety: 
-    /// A <see cref="SemaphoreSlim"/> is used to ensure that only one connect/disconnect 
-    /// operation is performed at a time.
-    /// </summary>
     public class IoTDevice : IIoTDevice
     {
         private readonly IMqttClient _mqttClient;
@@ -34,17 +20,6 @@ namespace DisplayLogic.Services
         private readonly SemaphoreSlim _connectionLock = new(1, 1);
         private readonly Dictionary<string, Action<string>> _subscriptionCallbacks = [];
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="IoTDevice"/> class.
-        /// </summary>
-        /// <param name="mqttBroker">Hostname or IP address of the MQTT broker.</param>
-        /// <param name="restEndpoint">Base URL of the REST API endpoint used as a fallback when MQTT is unavailable.</param>
-        /// <param name="port">Port number of the MQTT broker. Defaults to 1883 (standard MQTT).</param>
-        /// <param name="httpClient">Optional HTTP client for REST fallback communication. If null, a new instance is created.</param>
-        /// <param name="mqttClientFactory">Optional MQTT client factory. If null, a new factory is instantiated.</param>
-        /// <param name="mqttClient">Optional preconfigured MQTT client. If null, a new client is created.</param>
-        /// <param name="logger">Optional logger for structured logging. If null, a <see cref="NullLogger"/> is used.</param>
-        /// <exception cref="ArgumentNullException">Thrown when <paramref name="mqttBroker"/> or <paramref name="restEndpoint"/> is null.</exception>
         public IoTDevice(
             string mqttBroker,
             string restEndpoint,
@@ -78,21 +53,12 @@ namespace DisplayLogic.Services
                 await Task.CompletedTask;
             };
             _logger.LogDebug($"Device instance created. Broker: {mqttBroker}. REST endpoint: {restEndpoint}. Port: {port} ");
-            _mqttClient.ApplicationMessageReceivedAsync += HandleMessage;
+            _mqttClient.ApplicationMessageReceivedAsync += HandleMessageAsync;
         }
 
-        /// <summary>
-        /// Gets a value indicating whether the client is currently connected to the MQTT broker.
-        /// </summary>
+        // Public read-only property indicating connection status
         public bool IsConnected { get; private set; }
 
-        /// <summary>
-        /// Establishes a connection to the MQTT broker.
-        /// 
-        /// If already connected, the method first disconnects and then reconnects.
-        /// Sets <see cref="IsConnected"/> to <c>true</c> upon success.
-        /// </summary>
-        /// <exception cref="Exception">Thrown if the connection attempt fails.</exception>
         public async Task ConnectAsync()
         {
             await _connectionLock.WaitAsync();
@@ -129,10 +95,8 @@ namespace DisplayLogic.Services
             }
         }
 
-        /// <summary>
-        /// Gracefully disconnects from the MQTT broker by sending a DISCONNECT packet.
-        /// Ensures <see cref="IsConnected"/> is set to <c>false</c> after disconnection.
-        /// </summary>
+        // Gracefully disconnect from the MQTT broker        
+        // This method sends a DISCONNECT packet to the broker, ensuring a clean disconnection
         public async Task DisconnectAsync()
         {
             await _connectionLock.WaitAsync();
@@ -154,12 +118,7 @@ namespace DisplayLogic.Services
             }
         }
 
-        /// <summary>
-        /// Publishes a message to the specified MQTT topic.
-        /// </summary>
-        /// <param name="topic">The topic to publish to.</param>
-        /// <param name="payload">The message payload, encoded as a string.</param>
-        /// <exception cref="InvalidOperationException">Thrown if the MQTT client is not connected.</exception>
+        // Publish a message to the specified MQTT topic        
         public async Task PublishAsync(string topic, string payload)
         {
             // Ensure client is connected before attempting to publish
@@ -180,19 +139,6 @@ namespace DisplayLogic.Services
 
         }
 
-        /// <summary>
-        /// Attempts to publish a message using MQTT. 
-        /// If MQTT is unavailable, the method is intended to fall back to REST.
-        /// </summary>
-        /// <param name="topic">The topic to publish to.</param>
-        /// <param name="payload">The message payload.</param>
-        /// <remarks>
-        /// ⚠️ REST fallback is not currently implemented.  
-        /// Calling this method when the MQTT client is disconnected will fail.
-        /// </remarks>
-        /// <exception cref="NotImplementedException">
-        /// Thrown if fallback is attempted while MQTT is disconnected.
-        /// </exception>
         public async Task PublishWithFallbackAsync(string topic, string payload)
         {
             if (_mqttClient.IsConnected)
@@ -214,12 +160,7 @@ namespace DisplayLogic.Services
             }
         }
 
-        /// <summary>
-        /// Subscribes to an MQTT topic and asynchronously returns the first received message.
-        /// </summary>
-        /// <param name="topic">The topic to subscribe to.</param>
-        /// <returns>The first received message as a string.</returns>
-        /// <exception cref="Exception">Thrown if subscription fails.</exception>
+        // Subscribe to an MQTT topic and return the first message received
         public async Task<string> SubscribeAsync(string topic)
         {
             _logger.LogInformation("Attempting Subscription to MQTT topic: {topic}", topic);
@@ -270,12 +211,6 @@ namespace DisplayLogic.Services
             return await tcs.Task;
         }
 
-        /// <summary>
-        /// Subscribes to a topic, using MQTT if available, otherwise falls back to REST.
-        /// </summary>
-        /// <param name="topic">The topic to subscribe to.</param>
-        /// <returns>The first message received.</returns>
-        /// <exception cref="Exception">Thrown if subscription fails on both MQTT and REST.</exception>
         public async Task<string> SubscribeWithFallbackAsync(string topic)
         {
             if (_mqttClient.IsConnected)
@@ -306,11 +241,6 @@ namespace DisplayLogic.Services
             }
         }
 
-        /// <summary>
-        /// Subscribes persistently to an MQTT topic and registers a callback that is invoked whenever a new message is received.
-        /// </summary>
-        /// <param name="topic">The MQTT topic to subscribe to.</param>
-        /// <param name="callback">Callback action that is executed on every received message.</param>
         public async Task SubscribePersistentAsync(string topic, Action<string> callback)
         {
 
@@ -319,10 +249,7 @@ namespace DisplayLogic.Services
             System.Diagnostics.Debug.WriteLine($"Subscribed to MQTT topic: {topic}");
         }
 
-        /// <summary>
-        /// Internal handler that processes MQTT messages and dispatches them to registered subscription callbacks.
-        /// </summary>
-        private Task HandleMessage(MqttApplicationMessageReceivedEventArgs e)
+        private async Task HandleMessageAsync(MqttApplicationMessageReceivedEventArgs e)
         {
             string topic = e.ApplicationMessage.Topic;
             ReadOnlySequence<byte> payload = e.ApplicationMessage.Payload;
@@ -333,16 +260,9 @@ namespace DisplayLogic.Services
             {
                 callback(msg); // Caller handles threading
             }
-
-            return Task.CompletedTask;
         }
 
-        /// <summary>
-        /// Converts an MQTT topic into a corresponding REST API endpoint.
-        /// Example: "iot/devices/request" → "http://restEndpoint/devices-request"
-        /// </summary>
-        /// <param name="topic">MQTT topic string.</param>
-        /// <returns>A REST endpoint path derived from the topic.</returns>
+        // Utility method to map an MQTT topic to a REST endpoint path
         private string MapTopicToEndpoint(string topic)
         {
             // Map MQTT request to REST as fallback

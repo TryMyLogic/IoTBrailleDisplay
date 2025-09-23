@@ -7,16 +7,40 @@ using MQTTnet.Exceptions;
 
 namespace DisplayApp.Views;
 
+/// <summary>
+/// Represents the page for controlling a single IoT device.
+/// Provides device-specific controls such as power toggle, brightness, or temperature adjustments.
+/// Supports real-time updates via MQTT subscriptions and communicates with <see cref="IIoTDevice"/>.
+/// </summary>
 [QueryProperty(nameof(Device), "device")]
 public partial class DeviceControlPage : ContentPage, IQueryAttributable
 {
+    /// <summary>
+    /// The IoT backend service for publishing and subscribing to MQTT topics.
+    /// </summary>
     private readonly IIoTDevice _iotDevice;
+
+    /// <summary>
+    /// The device being controlled on this page.
+    /// Setting this property triggers the UI to load and subscribes to device state updates.
+    /// </summary>
     private MqttDevice _device;
+
+    /// <summary>
+    /// Service for showing/hiding global loading overlays.
+    /// </summary>
     private readonly ILoadingService _loadingService;
+
+    /// <summary>
+    /// Service for displaying notifications or alerts to the user.
+    /// </summary>
     private readonly IUserNotifier _notifier;
 
 
-    // Map 'device' query parameter to Device property
+    /// <summary>
+    /// Gets or sets the device that this page will control.
+    /// When set, the UI is initialized and device state subscriptions are started.
+    /// </summary>
     public MqttDevice Device
     {
         get => _device;
@@ -28,19 +52,33 @@ public partial class DeviceControlPage : ContentPage, IQueryAttributable
         }
     }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DeviceControlPage"/> class.
+    /// Sets up services and prepares the page for device control.
+    /// </summary>
+    /// <param name="iotDevice">The MQTT device service used to publish and subscribe messages.</param>
+    /// <param name="loadingService">Service to show and hide loading indicators.</param>
+    /// <param name="notifier">Service for user notifications.</param>
+    /// <exception cref="ArgumentNullException">Thrown if any required service is null.</exception>
     public DeviceControlPage(IIoTDevice iotDevice, ILoadingService loadingService, IUserNotifier notifier)
     {
         InitializeComponent();
         _iotDevice = iotDevice ?? throw new ArgumentNullException(nameof(iotDevice));
         _loadingService = loadingService ?? throw new ArgumentNullException(nameof(loadingService));
         _notifier = notifier ?? throw new ArgumentNullException(nameof(notifier));
-        if (_device != null) // Handle case where device is set before constructor finishes
+
+        // Handle case where device is set before constructor completes
+        if (_device != null)
         {
             LoadDevice();
             _ = SubscribeToDeviceStateAsync();
         }
     }
 
+    /// <summary>
+    /// Applies query attributes passed during navigation. Maps the "device" parameter to the <see cref="Device"/> property.
+    /// </summary>
+    /// <param name="query">Dictionary containing query attributes.</param>
     public async void ApplyQueryAttributes(IDictionary<string, object> query)
     {
         try
@@ -75,6 +113,10 @@ public partial class DeviceControlPage : ContentPage, IQueryAttributable
         }
     }
 
+    /// <summary>
+    /// Populates UI elements based on the current device.
+    /// Creates power buttons, sliders, and informational labels.
+    /// </summary>
     private void LoadDevice()
     {
         if (_device == null)
@@ -106,6 +148,11 @@ public partial class DeviceControlPage : ContentPage, IQueryAttributable
         LoadingIndicator.IsVisible = true;
     }
 
+    /// <summary>
+    /// Builds a power toggle button for the device.
+    /// Includes optimistic UI updates and publishes MQTT messages.
+    /// </summary>
+    /// <returns>A <see cref="Frame"/> containing the power button UI.</returns>
     private Frame BuildPowerButton()
     {
         Image icon = new()
@@ -161,6 +208,11 @@ public partial class DeviceControlPage : ContentPage, IQueryAttributable
         return frame;
     }
 
+    /// <summary>
+    /// Ensures that the MQTT client is connected before publishing a message.
+    /// </summary>
+    /// <param name="topic">MQTT topic to publish to.</param>
+    /// <param name="payload">Payload to publish.</param>
     private async Task EnsureConnectedAndPublishAsync(string topic, string payload)
     {
         if (!_iotDevice.IsConnected)
@@ -178,6 +230,10 @@ public partial class DeviceControlPage : ContentPage, IQueryAttributable
         await _iotDevice.PublishAsync(topic, payload);
     }
 
+    /// <summary>
+    /// Subscribes to device state topics for power, brightness, and temperature.
+    /// Updates the UI in real-time when device state changes occur.
+    /// </summary>
     private async Task SubscribeToDeviceStateAsync()
     {
         const int maxRetries = 5;
@@ -280,6 +336,11 @@ public partial class DeviceControlPage : ContentPage, IQueryAttributable
         LoadingIndicator.IsVisible = false;
     }
 
+    /// <summary>
+    /// Builds a slider control for brightness or temperature adjustment depending on device type.
+    /// </summary>
+    /// <param name="isShellySwitch">Indicates whether the device supports brightness control.</param>
+    /// <returns>A <see cref="VerticalStackLayout"/> containing a slider and label.</returns>
     private VerticalStackLayout BuildControlSlider(bool isShellySwitch)
     {
         var infoLabel = new Label
@@ -328,6 +389,10 @@ public partial class DeviceControlPage : ContentPage, IQueryAttributable
         };
     }
 
+    /// <summary>
+    /// Builds a generic label for informational purposes when the device has no special controls.
+    /// </summary>
+    /// <returns>A <see cref="Label"/> displaying placeholder text.</returns>
     private static Label BuildGenericInfo()
     {
         return new Label
@@ -339,7 +404,13 @@ public partial class DeviceControlPage : ContentPage, IQueryAttributable
         };
     }
 
-    // Back button handler
+    /// <summary>
+    /// Handles the back button click event.
+    /// Navigates back to the previous page in the navigation stack.
+    ///
+    /// Its a back button, what more do you want from me?
+    /// 
+    /// </summary>
     private async void OnBackClicked(object sender, EventArgs e)
     {
         Debug.WriteLine("Back button clicked");
