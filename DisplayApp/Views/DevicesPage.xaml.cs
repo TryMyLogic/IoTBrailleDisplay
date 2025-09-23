@@ -131,25 +131,28 @@ public partial class DevicesPage : ContentPage, IQueryAttributable
     /// <param name="devices">Optional list of devices to display.</param>
     private void RefreshDeviceList(IEnumerable<MqttDevice>? devices = null)
     {
-        if (_currentArea == null)
+        if (BindingContext is not DevicesPageViewModel vm || vm.CurrentArea == null)
         {
             return;
         }
 
-        IEnumerable<MqttDevice> source = devices ?? ((DevicesPageViewModel)BindingContext).Devices;
+        IEnumerable<MqttDevice> source = devices ?? vm.Devices;
 
         var filtered = source
             .Where(d =>
             {
-                return string.Equals(d.area_id, _currentArea.area_id, StringComparison.OrdinalIgnoreCase);
+                return string.Equals(
+                                string.IsNullOrEmpty(d.area_id) ? "unassigned" : d.area_id,
+                                vm.CurrentArea.area_id,
+                                StringComparison.OrdinalIgnoreCase);
             })
             .ToList();
 
         DevicesCollection.ItemsSource = filtered;
 
         RoomNameLabel.Text = filtered.Count > 0
-            ? $"Devices in {_currentArea.name}"
-            : $"Devices in {_currentArea.name} (No devices found)";
+            ? $"Devices in {vm.CurrentArea.name}"
+            : $"Devices in {vm.CurrentArea.name} (No devices found)";
     }
 
     /// <summary>
@@ -161,16 +164,19 @@ public partial class DevicesPage : ContentPage, IQueryAttributable
     {
         try
         {
-            if (query.TryGetValue("area", out object? areaObj) && areaObj is Area area &&
-                query.TryGetValue("devices", out object? devicesObj) && devicesObj is List<MqttDevice> devices)
+            if (BindingContext is not DevicesPageViewModel vm)
             {
-                _currentArea = area; // <-- save current area
+                return;
+            }
 
-                RefreshDeviceList(devices);
+            if (query.TryGetValue("area", out object? areaObj) && areaObj is Area area)
+            {
+                vm.LoadForArea(area); // let VM handle filtering
+                RefreshDeviceList(vm.Devices);
             }
             else
             {
-                RoomNameLabel.Text = "Invalid area or devices";
+                RoomNameLabel.Text = "Invalid area";
                 DevicesCollection.ItemsSource = new List<MqttDevice>();
             }
         }
