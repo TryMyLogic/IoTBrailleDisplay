@@ -8,17 +8,54 @@ using DisplayLogic.SharedInterfaces;
 
 namespace DisplayApp.ViewModels;
 
+/// <summary>
+/// ViewModel for the <see cref="MainPage"/> in the MAUI application.
+/// Manages the list of Areas and Devices, handles loading data from Home Assistant,
+/// and coordinates navigation to device-specific pages.
+/// </summary>
+/// <remarks>
+/// <para>
+/// This ViewModel adheres to the MVVM pattern, exposing ObservableCollections for
+/// data binding to the view and commands to handle user interaction.
+/// </para>
+/// <para>
+/// It supports live data retrieval from a Home Assistant WebSocket client, with
+/// fallback to mock data in case of connection failure or errors. Loading overlays
+/// and user notifications are handled via injected services (<see cref="ILoadingService"/> and
+/// <see cref="IUserNotifier"/>), keeping the ViewModel testable and decoupled from UI elements.
+/// </para>
+/// </remarks>
 public class MainPageViewModel
 {
+    /// <summary>
+    /// Collection of Areas (rooms) to be displayed in the UI.
+    /// Bound to a ListView or CollectionView in the MainPage.
+    /// </summary>
     public ObservableCollection<Area> Areas { get; set; } = [];
+
+    /// <summary>
+    /// Collection of devices available in the selected Area.
+    /// Used for navigation and device display in the UI.
+    /// </summary>
     public ObservableCollection<MqttDevice> Devices { get; set; } = [];
+
+    /// <summary>
+    /// Command invoked when a user selects an Area.
+    /// Triggers navigation to the <see cref="DevicesPage"/> with devices for that Area.
+    /// </summary>
     public ICommand OpenAreaCommand { get; }
+
     private readonly IHomeAssistantWebSocketClient _haClient;
     private bool _isDataLoaded;
     private readonly ILoadingService _loadingService;
     private readonly IUserNotifier _notifier;
 
-
+    /// <summary>
+    /// Initializes a new instance of <see cref="MainPageViewModel"/>.
+    /// </summary>
+    /// <param name="haClient">The Home Assistant WebSocket client for real-time data.</param>
+    /// <param name="loadingService">Service to show/hide loading overlays.</param>
+    /// <param name="notifier">Service to display user notifications.</param>
     public MainPageViewModel(IHomeAssistantWebSocketClient haClient, ILoadingService loadingService, IUserNotifier notifier)
     {
         _haClient = haClient;
@@ -39,6 +76,10 @@ public class MainPageViewModel
         _ = InitializeAsync();
     }
 
+    /// <summary>
+    /// Initializes the ViewModel by loading data from Home Assistant.
+    /// Falls back to mock data if the client is null or fails to connect.
+    /// </summary>
     private async Task InitializeAsync()
     {
         if (_haClient == null)
@@ -80,6 +121,13 @@ public class MainPageViewModel
         }
     }
 
+    /// <summary>
+    /// Loads live data from the Home Assistant WebSocket client into the Areas and Devices collections.
+    /// </summary>
+    /// <returns>A task representing the asynchronous load operation.</returns>
+    /// <remarks>
+    /// Clears previous data before adding new items to ensure UI reflects the latest state.
+    /// </remarks>
     private async Task LoadRealDataAsync()
     {
         if (!_haClient.IsConnected)
@@ -97,6 +145,12 @@ public class MainPageViewModel
         }
     }
 
+    /// <summary>
+    /// Navigates to the <see cref="DevicesPage"/> for the selected Area.
+    /// Passes the Area and the list of devices as navigation parameters.
+    /// </summary>
+    /// <param name="area">The selected Area to open.</param>
+    /// <returns>A task representing the asynchronous navigation operation.</returns>
     private async Task OpenAreaAsync(Area area)
     {
         if (area == null)
@@ -121,6 +175,13 @@ public class MainPageViewModel
         }
     }
 
+    /// <summary>
+    /// Loads mock Areas and Devices for testing or fallback scenarios.
+    /// </summary>
+    /// <remarks>
+    /// Provides basic UI data when live connection is unavailable.
+    /// Ensures the app can still function and display meaningful content.
+    /// </remarks>
     private void LoadMockData()
     {
         Areas.Add(new Area { area_id = "kitchen", name = "Kitchen" });
