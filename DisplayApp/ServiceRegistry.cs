@@ -16,8 +16,65 @@ using DisplayApp.Platforms.Windows;
 
 namespace DisplayApp
 {
+    /// <summary>
+    /// Provides an extension method for registering all custom services required by the DisplayApp.
+    /// </summary>
+    /// <remarks>
+    /// This static class centralizes dependency injection setup for the MAUI app. It configures 
+    /// both UI and logic services, sets up platform-specific connection strategies, and initializes 
+    /// logging via Serilog. Using a single service registration point makes the application more 
+    /// maintainable and modular, ensuring that configuration and logging are consistent across the app.
+    /// </remarks>
     internal static class ServiceRegistry
     {
+        /// <summary>
+        /// Registers custom services, configuration, and logging for the application.
+        /// </summary>
+        /// <param name="services">
+        /// The <see cref="IServiceCollection"/> into which application services are added.
+        /// </param>
+        /// <returns>
+        /// The updated <see cref="IServiceCollection"/> instance with DisplayApp services registered.
+        /// </returns>
+        /// <remarks>
+        /// This method performs several critical tasks:
+        /// <list type="bullet">
+        ///   <item>
+        ///     <description>
+        /// Loads <c>appsettings.json</c> configuration values, including Home Assistant WebSocket and MQTT settings.
+        /// </description>
+        ///   </item>
+        ///   <item>
+        ///     <description>
+        /// Dynamically builds the Home Assistant WebSocket URL and configures long-lived access tokens.
+        /// </description>
+        ///   </item>
+        ///   <item>
+        ///     <description>
+        /// Configures Serilog with rolling file logging, debug output, and custom overrides (e.g., Polly warnings).
+        /// </description>
+        ///   </item>
+        ///   <item>
+        ///     <description>
+        /// Registers UI services (e.g., <see cref="PopupNotifier"/>, <see cref="LoadingService"/>) 
+        /// and view models/pages (e.g., <see cref="MainPageViewModel"/>, <see cref="DevicesPage"/>).
+        /// </description>
+        ///   </item>
+        ///   <item>
+        ///     <description>
+        /// Registers backend logic services such as WebSocket and IoT clients. The IoT device connection is 
+        /// initiated asynchronously in the background to prevent blocking app startup.
+        /// </description>
+        ///   </item>
+        ///   <item>
+        ///     <description>
+        /// Uses conditional compilation directives (<c>#if ANDROID</c>, <c>#elif WINDOWS</c>, etc.) 
+        /// to inject platform-specific <see cref="IConnectionStrategy"/> implementations, ensuring that 
+        /// Bluetooth connectivity is resolved according to the runtime environment.
+        /// </description>
+        ///   </item>
+        /// </list>
+        /// </remarks>
         public static IServiceCollection RegisterCustomServices(this IServiceCollection services)
         {
             IConfiguration configuration = new ConfigurationBuilder()
