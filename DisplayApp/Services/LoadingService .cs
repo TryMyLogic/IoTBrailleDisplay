@@ -51,18 +51,6 @@
     /// unnecessary delays or flickering.
     /// </description>
     /// </item>
-    /// <item>
-    /// <description>
-    /// The <c>PushModalAsync</c> method is called without animation (<c>false</c>) to prevent
-    /// unnecessary delays or flickering.
-    /// </description>
-    /// </item>
-    /// <item>
-    /// <description>
-    /// The <c>PushModalAsync</c> method is called without animation (<c>false</c>) to prevent
-    /// unnecessary delays or flickering.
-    /// </description>
-    /// </item>
     /// </list>
     /// </para>
     /// <para>
