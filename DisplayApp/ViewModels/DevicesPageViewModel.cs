@@ -73,6 +73,8 @@ namespace DisplayApp.ViewModels
             DeviceAreaChanged?.Invoke();
         }
 
+        public Area? CurrentArea { get; private set; }
+
         /// <summary>
         /// Initializes a new instance of <see cref="DevicesPageViewModel"/>.
         /// </summary>
@@ -157,6 +159,35 @@ namespace DisplayApp.ViewModels
                 }
             });
 
+        }
+
+        /// <summary>
+        /// Loads devices associated with the specified <see cref="Area"/>.
+        /// </summary>
+        /// <param name="area">The area whose devices should be displayed.</param>
+        /// <remarks>
+        /// <para>
+        /// Clears the current <see cref="Devices"/> collection and repopulates it
+        /// with devices matching the provided <paramref name="area"/>.
+        /// </para>
+        /// <para>
+        /// Updates the <see cref="CurrentArea"/> property for reference in the ViewModel.
+        /// </para>
+        /// </remarks>
+        public void LoadForArea(Area area)
+        {
+            CurrentArea = area;
+
+            Devices.Clear();
+            foreach (MqttDevice? d in _haClient.Devices.Where(d =>
+            {
+                return string.Equals(string.IsNullOrEmpty(d.area_id) ? "unassigned" : d.area_id,
+                                              area.area_id,
+                                              StringComparison.OrdinalIgnoreCase);
+            }))
+            {
+                Devices.Add(d);
+            }
         }
     }
 }
