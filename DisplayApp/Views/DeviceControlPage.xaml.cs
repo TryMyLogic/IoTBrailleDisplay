@@ -255,9 +255,9 @@ public partial class DeviceControlPage : ContentPage, IQueryAttributable
                 string tempTopic = $"shellies/{deviceId}/temp/set"; // Adjust based on your device
 
                 // Subscribe to power state persistently
-                await _iotDevice.SubscribePersistentAsync(powerTopic, state =>
+                await _iotDevice.SubscribePersistentAsync(powerTopic, async state =>
                 {
-                    using (MainThread.InvokeOnMainThreadAsync(() =>
+                    await MainThread.InvokeOnMainThreadAsync(() =>
                     {
                         if (LeftPane.Children.OfType<Frame>().FirstOrDefault()?.Content is Image powerButton)
                         {
@@ -267,15 +267,13 @@ public partial class DeviceControlPage : ContentPage, IQueryAttributable
                                 frame.BorderColor = state == "on" ? Color.FromRgb(166, 120, 226) : Color.FromRgb(255, 0, 0);
                             }
                         }
-                    }))
-                    {
-                    }
+                    });
                 });
 
                 // Subscribe to brightness persistently
-                await _iotDevice.SubscribePersistentAsync(brightnessTopic, brightness =>
+                await _iotDevice.SubscribePersistentAsync(brightnessTopic, async brightness =>
                 {
-                    using (MainThread.InvokeOnMainThreadAsync(() =>
+                    await (MainThread.InvokeOnMainThreadAsync(() =>
                     {
                         if (LeftPane.Children.OfType<VerticalStackLayout>().FirstOrDefault()?.Children.OfType<Slider>().FirstOrDefault() is Slider slider &&
                             LeftPane.Children.OfType<VerticalStackLayout>().FirstOrDefault()?.Children.OfType<Label>().FirstOrDefault() is Label label)
@@ -286,24 +284,20 @@ public partial class DeviceControlPage : ContentPage, IQueryAttributable
                                 label.Text = $"Brightness: {value}%";
                             }
                         }
-                    }))
-                    {
-                    }
+                    }));
                 });
 
                 // Subscribe to temperature persistently
-                await _iotDevice.SubscribePersistentAsync(tempTopic, temp =>
+                await _iotDevice.SubscribePersistentAsync(tempTopic, async temp =>
                 {
-                    using (MainThread.InvokeOnMainThreadAsync(() =>
+                    await (MainThread.InvokeOnMainThreadAsync(() =>
                     {
                         if (RightPane.Children.OfType<VerticalStackLayout>().FirstOrDefault()?.Children.OfType<Frame>().FirstOrDefault()?.Content is Label tempLabel &&
                             int.TryParse(temp, out int value))
                         {
                             tempLabel.Text = $"{value}°";
                         }
-                    }))
-                    {
-                    }
+                    }));
                 });
 
                 LoadingIndicator.IsRunning = false;
