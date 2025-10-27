@@ -30,3 +30,13 @@ physically read and respond to.
 Our approach combines affordability and open-source
 integration, ensuring the design is usable for various
 accessibility use cases in any environment.
+
+## Outcomes
+* A fully functional .NET MAUI companion app that connects to the Braille display and smart devices.
+* A partially functional IoT control system written in C++, capable of translating digital input into Braille actuator commands.
+* All hardware components have been acquired and assembled, ready for integration and testing.
+
+However, we encountered 3 major setbacks:
+1. Late hardware arrival, less than one month before final submission, which restricted our ability to fully test and calibrate the solenoid array and C++ code and integrate with the MAUI application.
+2. A supply error, where we received an Arduino UNO instead of the requested Arduino Leonardo which eliminated our plans for user input on the display and limited available power output.
+3. A 3D printer failure at the university, which prevented us from producing the final display chassis with accurate cell dimensions.
