@@ -47,7 +47,10 @@ jobs:
 
       - name: Install MAUI workloads
         run: dotnet workload install maui
-        
+
+      - name: Restore solution
+        run: dotnet restore IoTBrailleDisplay.sln
+
       - name: Install dotnet-format
         run: dotnet tool install -g dotnet-format
 
