@@ -68,7 +68,10 @@ namespace DisplayApp.Services
             string fullMessage = string.IsNullOrEmpty(title) ? message : $"{title}: {message}";
 
             IToast toast = Toast.Make(fullMessage, ToastDuration.Short, 14);
-            await toast.Show(cancellationTokenSource.Token);
+            await MainThread.InvokeOnMainThreadAsync(async () =>
+            {
+                await toast.Show(cancellationTokenSource.Token);
+            });
         }
     }
 }

@@ -2,73 +2,48 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="DisplayApp.Views.DeviceControlPage"
-             Background="#2D2B3E"
+             BackgroundColor="#2D2B3E"
              Title="Control Panel"
-             NavigationPage.HasNavigationBar="False"
-             xmlns:views="clr-namespace:DisplayApp.Views">
+             NavigationPage.HasNavigationBar="False">
 
-    <Grid ColumnDefinitions="80,*" RowDefinitions="Auto,*">
+    <Grid RowDefinitions="Auto,*" ColumnDefinitions="*">
 
-        <VerticalStackLayout Padding="20" Spacing="10" Grid.Column="1">
-
-            <!-- Device name centered at top -->
-            <Label x:Name="DeviceNameLabel"
-               Grid.Column="1"
+        <!-- Device name centered at top -->
+        <Label x:Name="DeviceNameLabel"
                Grid.Row="0"
                TextColor="#A678E2"
                FontSize="22"
                FontAttributes="Bold"
                HorizontalOptions="Center"
-               VerticalOptions="Center"
-               Margin="0,30,0,10" />
+               VerticalOptions="Start"
+               HorizontalTextAlignment="Center"
+               Margin="0,30,0,10"
+               Text="{Binding DeviceName}" />
 
-            <!-- Back Button -->
-            <Button Text="← Back"
-                Grid.Column="1"
-                Grid.Row="1"
-                Margin="20,0"
-                BackgroundColor="#A678E2"
-                TextColor="White"
-                CornerRadius="25"
-                HorizontalOptions="Start"
-                VerticalOptions="Start"
-                Clicked="OnBackClicked" />
+        <!-- Main content -->
+        <Grid Grid.Row="1" Padding="20">
 
-            <ActivityIndicator x:Name="LoadingIndicator"
-                           Grid.Row="0"
-                           Grid.RowSpan="2"
-                           Grid.ColumnSpan="2"
+            <!-- LeftPane is hidden for now -->
+            <StackLayout x:Name="LeftPane"
+                         HorizontalOptions="Center"
+                        VerticalOptions="Start"
+                        Spacing="20" />
+
+            <!-- RightPane centered -->
+            <StackLayout x:Name="RightPane"
+                         IsVisible="False"
+                        HorizontalOptions="Fill"
+                        VerticalOptions="Start"
+                        Spacing="20" />
+        </Grid>
+
+        <!-- Loading Indicator overlay -->
+        <ActivityIndicator x:Name="LoadingIndicator"
+                           Grid.Row="1"
                            IsRunning="False"
-                           Color="#A678E2"
                            IsVisible="False"
+                           Color="#A678E2"
                            HorizontalOptions="Center"
                            VerticalOptions="Center" />
-
-            <!-- Main Controls -->
-            <Grid Grid.Row="1" Grid.Column="1"
-              Padding="40" ColumnSpacing="50">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-
-                <!-- Left dynamic slot -->
-                <StackLayout x:Name="LeftPane"
-                         Grid.Column="0"
-                         HorizontalOptions="Center"
-                         VerticalOptions="Center"
-                         Spacing="20" />
-
-                <!-- Right dynamic slot -->
-                <StackLayout x:Name="RightPane"
-                         Grid.Column="1"
-                         HorizontalOptions="Center"
-                         VerticalOptions="Center"
-                         Spacing="20" />
-            </Grid>
-        </VerticalStackLayout>
     </Grid>
-
-
-
 </ContentPage>

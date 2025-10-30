@@ -5,80 +5,94 @@
              xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
              x:Class="DisplayApp.Views.DevicesPage"
              Title="Devices"
-             BackgroundColor="#302F3F"
-             xmlns:views="clr-namespace:DisplayApp.Views">
-    <Grid ColumnDefinitions="Auto,*">
-        <VerticalStackLayout Padding="20" Spacing="10" Grid.Column="1">
-            <Label x:Name="RoomNameLabel"
+             BackgroundColor="#302F3F">
+
+    <!-- Main Grid -->
+    <Grid Padding="20" RowSpacing="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <!-- Room Name -->
+            <RowDefinition Height="Auto"/>
+            <!-- Loading Indicator -->
+            <RowDefinition Height="*"/>
+            <!-- Devices Collection -->
+        </Grid.RowDefinitions>
+
+        <!-- Room Name -->
+        <Label x:Name="RoomNameLabel"
+               Grid.Row="0"
                FontSize="22"
                FontAttributes="Bold"
                TextColor="#A678E2"
                HorizontalOptions="Center" />
 
-            <!-- Back Button -->
-            <Button Text="← Back"
-                Grid.Column="1"
-                Grid.Row="1"
-                Margin="20,0"
-                BackgroundColor="#A678E2"
-                TextColor="White"
-                CornerRadius="25"
-                HorizontalOptions="Start"
-                VerticalOptions="Start"
-                Clicked="OnBackClicked" />
-
-            <ActivityIndicator x:Name="LoadingIndicator"
+        <!-- Loading Indicator -->
+        <ActivityIndicator x:Name="LoadingIndicator"
+                           Grid.Row="1"
                            IsRunning="False"
-                           Color="#A678E2"
                            IsVisible="False"
+                           Color="#A678E2"
                            HorizontalOptions="Center"
                            VerticalOptions="Center" />
 
-            <CollectionView x:Name="DevicesCollection"
-                SelectionMode="Single"
-                SelectionChanged="OnDeviceSelected"
-                IsVisible="{Binding IsRunning, Source={x:Reference LoadingIndicator}, Converter={StaticResource InverseBooleanConverter}}">
-                <CollectionView.ItemsLayout>
-                    <GridItemsLayout Orientation="Vertical" Span="2" />
-                </CollectionView.ItemsLayout>
-                <CollectionView.ItemTemplate>
-                    <DataTemplate>
-                        <Frame BackgroundColor="#3E3C5C" CornerRadius="10" Padding="10" Margin="5">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
+        <!-- Devices Collection -->
+        <CollectionView x:Name="DevicesCollection"
+                        Grid.Row="2"
+                        SelectionMode="Single"
+                        SelectionChanged="OnDeviceSelected"
+                        IsVisible="{Binding IsRunning, Source={x:Reference LoadingIndicator}, Converter={StaticResource InverseBooleanConverter}}">
 
-                                <!-- Device Info -->
-                                <VerticalStackLayout Grid.Column="0" Spacing="2">
-                                    <Label Text="{Binding name, FallbackValue='Unknown Device'}"
-                           TextColor="White"
-                           FontSize="16"
-                           FontAttributes="Bold" />
-                                    <Label Text="{Binding model, FallbackValue='Unknown Model'}"
-                           TextColor="Gray"
-                           FontSize="12" />
-                                </VerticalStackLayout>
+            <!-- Layout: 1 column by default, can adjust in code for tablets -->
+            <CollectionView.ItemsLayout>
+                <GridItemsLayout Orientation="Vertical" Span="1" />
+            </CollectionView.ItemsLayout>
 
-                                <!-- Assign Area Button -->
-                                <Button Grid.Column="1"
-                        Text="✏️ Edit"
-                        FontSize="14"
-                        Padding="10,0"
-                        WidthRequest="80"
-                        HeightRequest="40"
-                        Clicked="OnDeviceOptionsClicked"
-                        Command="{Binding Source={x:Reference DevicesPageRoot}, Path=BindingContext.ShowAreaPickerCommand}"
-                        CommandParameter="{Binding .}"
-                        BackgroundColor="#5A5A7A"
-                        TextColor="White"
-                        CornerRadius="8" />
-                            </Grid>
-                        </Frame>
-                    </DataTemplate>
-                </CollectionView.ItemTemplate>
-            </CollectionView>
-        </VerticalStackLayout>
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Frame BackgroundColor="#3E3C5C"
+                           CornerRadius="10"
+                           Padding="10"
+                           Margin="0,5"
+                           HorizontalOptions="Fill">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Command="{Binding Source={x:Reference DevicesPageRoot}, Path=BindingContext.OpenDeviceCommand}"
+                              CommandParameter="{Binding .}" />
+                        </Frame.GestureRecognizers>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Device Info -->
+                            <VerticalStackLayout Grid.Column="0" Spacing="2">
+                                <Label Text="{Binding name, FallbackValue='Unknown Device'}"
+                                       TextColor="White"
+                                       FontSize="16"
+                                       FontAttributes="Bold" />
+                                <Label Text="{Binding model, FallbackValue='Unknown Model'}"
+                                       TextColor="Gray"
+                                       FontSize="12" />
+                            </VerticalStackLayout>
+
+                            <!-- Assign Area Button -->
+                            <Button Grid.Column="1"
+                                    Text="✏️ Edit"
+                                    FontSize="14"
+                                    Padding="10,0"
+                                    WidthRequest="80"
+                                    HeightRequest="40"
+                                    Clicked="OnDeviceOptionsClicked"
+                                    Command="{Binding Source={x:Reference DevicesPageRoot}, Path=BindingContext.ShowAreaPickerCommand}"
+                                    CommandParameter="{Binding .}"
+                                    BackgroundColor="#5A5A7A"
+                                    TextColor="White"
+                                    CornerRadius="8" />
+                        </Grid>
+                    </Frame>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
     </Grid>
 </ContentPage>

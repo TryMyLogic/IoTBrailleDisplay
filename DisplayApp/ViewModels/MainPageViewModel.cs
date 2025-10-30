@@ -161,7 +161,7 @@ public class MainPageViewModel
         try
         {
             // Grab the latest devices
-            List<MqttDevice> devicesCopy = _haClient.Devices ?? [];
+            List<MqttDevice> devicesCopy = _haClient?.Devices ?? Devices.ToList();
 
             await Shell.Current.GoToAsync(nameof(DevicesPage), true, new Dictionary<string, object>
         {
@@ -184,20 +184,30 @@ public class MainPageViewModel
     /// </remarks>
     private void LoadMockData()
     {
-        Areas.Add(new Area { area_id = "kitchen", name = "Kitchen" });
-        Areas.Add(new Area { area_id = "living_room", name = "Living Room" });
+        Areas.Clear();
+        Devices.Clear();
 
-        Devices.Add(new MqttDevice
+        Area kitchen = new()
+        { area_id = "kitchen", name = "Kitchen" };
+        Area livingRoom = new()
+        { area_id = "living_room", name = "Living Room" };
+
+        Areas.Add(kitchen);
+        Areas.Add(livingRoom);
+
+        var mockDevice = new MqttDevice
         {
             id = "device1",
             name = "Kitchen Light",
-            area_id = "kitchen",
+            area_id = "Kitchen",
             manufacturer = "Philips",
             model = "Hue",
             default_manufacturer = "Generic",
             default_model = "ModelA",
             default_name = "Light A",
             identifiers = [["mqtt", "kitchen_light"]]
-        });
+        };
+
+        Devices.Add(mockDevice);
     }
 }

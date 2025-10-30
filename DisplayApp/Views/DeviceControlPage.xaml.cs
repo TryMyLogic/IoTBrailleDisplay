@@ -133,16 +133,7 @@ public partial class DeviceControlPage : ContentPage, IQueryAttributable
                              _device.model?.Contains("Shelly 1PM", StringComparison.OrdinalIgnoreCase) == true;
 
         LeftPane.Children.Add(BuildPowerButton());
-        RightPane.Children.Add(BuildControlSlider(isShellySwitch));
-
-        if (isShellySwitch)
-        {
-            RightPane.Children.Add(BuildGenericInfo());
-        }
-        else
-        {
-            RightPane.Children.Add(BuildGenericInfo());
-        }
+        //RightPane.Children.Add(BuildControlSlider(isShellySwitch));
 
         LoadingIndicator.IsRunning = true;
         LoadingIndicator.IsVisible = true;
